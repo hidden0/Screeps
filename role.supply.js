@@ -103,7 +103,7 @@ function supplyTarget(creep)
     // first send to towers
     if(dstTower.length > 0)
     {
-        if( creep.transfer(dstTower[0],RESOURCE_ENERGY,creep.energy); == ERR_NOT_IN_RANGE ) {
+        if( creep.transfer(dstTower[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
             creep.moveTo(dstTower[0]);
         }
     }

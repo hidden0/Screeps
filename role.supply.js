@@ -52,7 +52,7 @@ var roleSupplier = {
             }
             i++;
         }
-        console.log(largestFound.energy);
+        console.log("Latest commit: " + largestFound.energy);
         // Logic for delivery
         if(energySource.energy > 0)
         {

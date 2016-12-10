@@ -28,9 +28,10 @@ var roleSupplier = {
             {
                 // Start filling towers first, extensions second.
                 // Check creep energy
-                if(creep.energy<creep.carryCapacity)
+                if(creep.carry.energy<creep.carryCapacity)
                 {
                     // Grab energy from a container first, storage second, spawn 3rd
+                    //console.log("grabbing en");
                     getEnergy(creep);
                 }
                 // Creep has energy, take it to proper target

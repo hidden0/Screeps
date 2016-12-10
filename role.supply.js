@@ -110,14 +110,14 @@ function supplyTarget(creep)
     // Send to extensions
     else if(dstExtension.length > 0)
     {
-        if( creep.transfer(dstExtension[0],RESOURCE_ENERGY,creep.energy); == ERR_NOT_IN_RANGE ) {
+        if( creep.transfer(dstExtension[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
             creep.moveTo(dstExtension[0]);
         }
     }
     // Finally, send to container
     else if(dstContainer.length > 0)
     {
-        if( creep.transfer(dstContainer[0],RESOURCE_ENERGY,creep.energy); == ERR_NOT_IN_RANGE ) {
+        if( creep.transfer(dstContainer[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
             creep.moveTo(dstContainer[0]);
         }
     }

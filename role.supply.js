@@ -49,7 +49,7 @@ var roleSupplier = {
                 });
             if(dstStorage.length > 0)
             {
-                if( creep.transfer(dstStorage[0],RESOURCE_ENERGY,creep.energy); == ERR_NOT_IN_RANGE ) {
+                if( creep.transfer(dstStorage[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
                     creep.moveTo(dstStorage[0]);
                 }
             }

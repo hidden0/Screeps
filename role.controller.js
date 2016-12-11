@@ -16,11 +16,13 @@ var roleController = {
                 filter: (i) => (i.structureType == STRUCTURE_SPAWN) &&
                                i.energy > 200
             });
-            console.log(energyStorage.length);
-            if(energyStorage.length>0)
+
+            var closestStorage = mapDistance(creep);
+            if(closestStorage.length>0)
             {
-                if( creep.withdraw(energyStorage[0],RESOURCE_ENERGY,50) == ERR_NOT_IN_RANGE ) {
-					creep.moveTo(energyStorage[0]);
+                var container = Game.getObjectById(closestStorage[0].split(":")[1]);
+                if( creep.withdraw(container,RESOURCE_ENERGY,creep.carryCapacity) == ERR_NOT_IN_RANGE ) {
+					creep.moveTo(container);
 				}
             }
         }
@@ -52,4 +54,58 @@ var roleController = {
 	}
 };
 
+// Counts distance to an energy container in a room for handling distance
+function mapDistance(creep)
+{
+    var distanceCounter = new Array();
+    var energyStorage = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.structureType == STRUCTURE_CONTAINER || i.structureType == STRUCTURE_STORAGE) &&
+                       i.store[RESOURCE_ENERGY] > 50
+    });
+    var spawn_xPos = creep.pos.x;
+    var spawn_yPos = creep.pos.y;
+    var i=0;
+    while (i<energyStorage.length)
+    {
+        // Find the distance via pythagorean theorem to this source
+
+        var source_xPos = energyStorage[i].pos.x;
+        var source_yPos = energyStorage[i].pos.y;
+        var x_1 = 0;
+        var x_2 = 0;
+        var y_1 = 0;
+        var y_2 = 0;
+        if(spawn_xPos > source_xPos)
+        {
+            x_2 = spawn_xPos;
+            x_1 = source_xPos;
+        }
+        else
+        {
+            x_1 = spawn_xPos;
+            x_2 = source_xPos;
+        }
+        if(spawn_yPos > source_yPos)
+        {
+            y_2 = spawn_yPos;
+            y_1 = source_yPos;
+        }
+        else
+        {
+            y_1 = spawn_yPos;
+            y_2 = source_yPos;
+        }
+        var xCalc = ((x_2-x_1)*(x_2-x_1));
+        var yCalc = ((y_2-y_1)*(y_2-y_1));
+
+        var distance = Math.sqrt(xCalc+yCalc);
+        distanceCounter[i]=distance+":"+energyStorage[i].id;  
+        i++;    
+    }
+
+    // Sort the list
+    distanceCounter.sort(function(a, b){return (a.split(':')[0])-(b.split(':')[0])});
+
+    return distanceCounter;
+}
 module.exports = roleController;

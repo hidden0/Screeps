@@ -13,86 +13,163 @@ var roleSupplier = {
             3) If 1==yes, and 2==yes, move energy to it
         */
         // Find all storage available
-        var enContainer = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.structureType == STRUCTURE_CONTAINER) && 
-                (i.store[RESOURCE_ENERGY] < i.storeCapacity)
-        });
-        var enStorage = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.structureType == STRUCTURE_STORAGE) &&
-                (i.store[RESOURCE_ENERGY] < i.storeCapacity)
-        });
-        var enSpawn = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.energy < i.energyCapacity) &&
-                (i.structureType == STRUCTURE_SPAWN)
-        });
-        
-        // Find all energy targets
-        var dstTower = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.energy < i.energyCapacity) &&
-                (i.structureType == STRUCTURE_TOWER)
-        });
-        var dstExtension = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.energy < i.energyCapacity) &&
-                (i.structureType == STRUCTURE_EXTENSION)
-        });
-        
-        // Energy should be sourced from largest storage point at the time
-        var energySource = enStorage;
-        var largestFound = enStorage[0].energy;
-        
-        // Loop through containers
-        var i = 0;
-        while (i<enContainer.length)
+        var energyThresh = 275; // Minimum energy we should see in storage (spawn+ext) before we start moving things about
+        var roomEnergy = creep.room.energyAvailable;
+        if(creep.memory.action==null)
         {
-            if(enContainer[i].store[RESOURCE_ENERGY] > largestFound)
-            {
-                // A container is the largest
-                energySource = container[i];
-                largestFound = container[i].store[RESOURCE_ENERGY];
-            }
-            i++;
+            creep.memory.action="supplying";
         }
-        console.log("Latest commit: " + largestFound.energy);
-        // Logic for delivery
-        if(energySource.energy > 0)
+        var action = creep.memory.action;
+        // if no action is set, we're just sending energy around to structures
+        if(action=="supplying")
         {
-            // Check for a destination
-            if(dstTower.length>0)
+            // If there is enough energy laying around
+            if(roomEnergy>energyThresh)
             {
-                // Send to a tower first
-                var result = creep.transfer(dstTower[0],RESOURCE_ENERGY,creep.energy);
-                if(result != OK && result != ERR_NOT_IN_RANGE)
+                // Start filling towers first, extensions second.
+                // Check creep energy
+                if(creep.carry.energy<creep.carryCapacity)
                 {
-                    console.log(result);
+                    // Grab energy from a container first, storage second, spawn 3rd
+                    //console.log("grabbing en");
+                    getEnergy(creep);
                 }
+                // Creep has energy, take it to proper target
                 else
                 {
-                    creep.moveTo(dstTower[0]);
+                    supplyTarget(creep);
                 }
-            }
-            // Otherwise fill extensions
-            else if(dstExtension.length>0)
-            {
-                var result = creep.transfer(dstExtension[0],RESOURCE_ENERGY,creep.energy);
-                if(result != OK && result != ERR_NOT_IN_RANGE)
-                {
-                    //console.log(result);
-                }
-                else
-                {
-                    creep.moveTo(dstExtension[0]);
-                }
-            }
-            else
-            {
-                creep.moveTo((Game.spawns['Spawn1'].pos.x-3), Game.spawns['Spawn1'].pos.y-3);
             }
         }
-        else
+        // otherwise structure are full adn we can fill the main storage unit
+        else if(action=="store")
         {
-            creep.moveTo((Game.spawns['Spawn1'].pos.x-3), Game.spawns['Spawn1'].pos.y-3);
+            var dstStorage = creep.room.find(FIND_STRUCTURES, {
+                    filter: (i) => (i.energy < i.energyCapacity) &&
+                        (i.structureType == STRUCTURE_STORAGE)
+                });
+            if(dstStorage.length > 0)
+            {
+                if( creep.transfer(dstStorage[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
+                    creep.moveTo(dstStorage[0]);
+                }
+            }
+            checkSupply(creep);
         }
     }
 };
 
+/***
+See if containers/extensions need filled
+***/
+function checkSupply(creep)
+{
+    // Find all energy targets
+    var dstTower = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy < i.energyCapacity) &&
+            (i.structureType == STRUCTURE_TOWER)
+    });
+    var dstExtension = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy < i.energyCapacity) &&
+            (i.structureType == STRUCTURE_EXTENSION)
+    });
+    var dstContainer = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy < i.energyCapacity) &&
+            (i.structureType == STRUCTURE_CONTAINER)
+    });
+    if(dstTower.length > 0 || dstExtension.length > 0 || dstContainer.length > 0)
+    {
+        creep.memory.action="supplying";
+    }
+}
+/***
+Creep assumed to have energy at this point. Supply towers, extensions, containers, and storage in that order.
+
+***/
+function supplyTarget(creep)
+{
+    // Find all energy targets
+    var dstTower = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy < i.energyCapacity) &&
+            (i.structureType == STRUCTURE_TOWER)
+    });
+    var dstExtension = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy < i.energyCapacity) &&
+            (i.structureType == STRUCTURE_EXTENSION)
+    });
+    var dstContainer = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy < i.energyCapacity) &&
+            (i.structureType == STRUCTURE_CONTAINER)
+    });
+    // first send to towers
+    if(dstTower.length > 0)
+    {
+        if( creep.transfer(dstTower[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
+            creep.moveTo(dstTower[0]);
+        }
+    }
+    // Send to extensions
+    else if(dstExtension.length > 0)
+    {
+        if( creep.transfer(dstExtension[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
+            creep.moveTo(dstExtension[0]);
+        }
+    }
+    // Finally, send to container
+    else if(dstContainer.length > 0)
+    {
+        if( creep.transfer(dstContainer[0],RESOURCE_ENERGY,creep.energy) == ERR_NOT_IN_RANGE ) {
+            creep.moveTo(dstContainer[0]);
+        }
+    }
+    // No real targets, set flag to continue filling main storage from spawn
+    else
+    {
+        creep.memory.action="store";
+    }
+}
+/***
+Creep logic for obtaining energy
+- Are there containers with energy? use those first
+- If no containers, does the main storage have energy? use this next
+- Finally, use spawn if it's energy is at 275 >
+***/
+function getEnergy(creep)
+{
+    var enContainer = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.structureType == STRUCTURE_CONTAINER) && 
+            (i.store[RESOURCE_ENERGY] > 0)
+    });
+    var enStorage = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.structureType == STRUCTURE_STORAGE) &&
+            (i.store[RESOURCE_ENERGY] > 0)
+    });
+    var enSpawn = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => (i.energy >= 275) &&
+            (i.structureType == STRUCTURE_SPAWN)
+    });
+    var withDrawValue = creep.carryCapacity-creep.energy;
+
+    // Get containers
+    if(enContainer.length > 0)
+    {
+        if( creep.withdraw(enContainer[0],RESOURCE_ENERGY,withDrawValue) == ERR_NOT_IN_RANGE ) {
+            creep.moveTo(enContainer[0]);
+        }
+    }
+    // Get from storage
+    else if(enStorage.length > 0)
+    {
+        if( creep.withdraw(enStorage[0],RESOURCE_ENERGY,withDrawValue) == ERR_NOT_IN_RANGE ) {
+            creep.moveTo(enStorage[0]);
+        }
+    }
+    // Finally, get from spawn
+    else if(enSpawn.length > 0)
+    {
+        if( creep.withdraw(enSpawn[0],RESOURCE_ENERGY,withDrawValue) == ERR_NOT_IN_RANGE ) {
+            creep.moveTo(enSpawn[0]);
+        }
+    }
+}
 module.exports = roleSupplier;

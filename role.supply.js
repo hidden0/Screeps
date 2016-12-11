@@ -54,6 +54,7 @@ var roleSupplier = {
                     creep.moveTo(dstStorage[0]);
                 }
             }
+            checkSupply(creep);
         }
     }
 };
@@ -100,7 +101,6 @@ function supplyTarget(creep)
         filter: (i) => (i.energy < i.energyCapacity) &&
             (i.structureType == STRUCTURE_CONTAINER)
     });
-
     // first send to towers
     if(dstTower.length > 0)
     {

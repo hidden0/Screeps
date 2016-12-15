@@ -14,7 +14,6 @@ var builders;
 var suppliers;
 
 var creepId;
-var gameLevel;
 
 /* Creep body definitions */
 var basicCreepBody = [WORK, CARRY, MOVE];
@@ -301,14 +300,10 @@ function init()
 	
 	// Update current counts
 
-    miners.current	 	= _.filter(Game.creeps, (creep) => creep.memory.role == "miner").length;
-    miners.current	 	+= _.filter(Game.creeps, (creep) => creep.memory.role == "miner2").length;
-    controllers.current	= _.filter(Game.creeps, (creep) => creep.memory.role=="controller").length;
-    controllers.current += _.filter(Game.creeps, (creep) => creep.memory.role=="controller2").length;
-   	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role=="builder").length;
-   	builders.current	+= _.filter(Game.creeps, (creep) => creep.memory.role=="builder2").length;
-   	suppliers.current	= _.filter(Game.creeps, (creep) => creep.memory.role=="supply").length;
-   	
+    miners.current	 	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('miner')).length;
+    controllers.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('controller')).length;
+   	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes("builder")).length;
+   	suppliers.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('supply')).length;
 }
 
 function manageCreeps()
@@ -496,6 +491,10 @@ function checkOpenSpace(obj)
 }
 
 // Checks the current game level and updates memory
+/* TODO: This needs heavily tweaked. The impacts of the current values work up until now,
+but gameplay is about to reach another tier (i.e. attacking/defending/building/transferring/multiple room control)
+and the impact of this is not known as of yet.
+*/
 function checkLevel()
 {
 	var theRoom = mySpawns[0].room;

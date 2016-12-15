@@ -149,23 +149,6 @@ function handleSpawnMemory()
         		break;
         }
     }
-	if(mySpawns[0].memory.minerOverride)
-	{
-		optMiners=3;
-	}
-	if(mySpawns[0].memory.command=="reset_miners")
-	{
-		optMiners = mapSources(mySpawns[0].room);
-		for(var i in Game.creeps)
-		{
-			var creep = Game.creeps[i];
-			if(creep.memory.role=="miner")
-			{
-				creep.memory.sourceMine=null;
-			}
-		}
-		mySpawns[0].memory.command=null;
-	}
 }
 
 function trySpawn(name,body)
@@ -246,7 +229,7 @@ function spawnCreep(type)
 			if(trySpawn(creepName,l2ControllerBody))
 			{
 				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="controller2";
+				newCreep.memory.role="controller";
 			}
 			break;
 	}

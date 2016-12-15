@@ -78,29 +78,117 @@ function reinforceWalls(creep)
         else
         {
             // Find all walls and store them in memory
-            walls = creep.room.findClosest(FIND_STRUCTURES, {
+            walls = creep.pos.findClosest(FIND_STRUCTURES, {
                 filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
             });
 
             // Set the target
-            creep.memory.targetWall = walls[0];
+            creep.memory.targetWall = walls[0].id;
         }
     }
 }
 // buildSites(creep): No walls to be built, so build sites if they exist.
 function buildSites(creep)
 {
+    var targetSite;
     var constructionSites = null; // Assume no sites every tick
+
+    // Do we have energy for the creep?
+    if(creep.energy < creep.carry.capacity)
+    {
+        // Go get some!
+        getEnergy(creep);
+    }
+    // If we do have energy, great! Build sites
+    else
+    {
+        // Does the creep have a target already?
+        if(creep.memory.targetSite!=null)
+        {
+            // Repair the wall to the necessary strength
+            targetSite = Game.getObjectById(creep.memory.targetSite);
+            if(creep.repair(targetSite) == ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(targetSite);
+            }
+            // Remember to unset this target from memory when we hit our target strength
+            if(targetSite.hits >= wallStr)
+            {
+                creep.memory.targetSite=null;
+            }
+        }
+        // Creep doesn't have a target, so find the closest one and keep it in memory
+        else
+        {
+            // Find all walls and store them in memory
+            constructionSites = creep.pos.findClosest(FIND_CONSTRUCTION_SITES)
+
+            // Set the target
+            creep.memory.targetSite = constructionSites[0].id;
+        }
+    }
 }
 // goIdle(creep): Nothing to do so chill at flag or default positions.
 function goIdle(creep)
 {
     var idlePos = null; // Assume there is no flag set for an idle position
+    if(Game.flags['BuilderIdle1'])
+    {
+        creep.moveTo(Game.flags['BuilderIdle1']);
+    }
+    else
+    {
+        creep.moveTo((mySpawn.pos.x+10), mySpawn.pos.y+10);
+    }
 }
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)
 {
-
+    var walls = creep.pos.findClosest(FIND_STRUCTURES, {
+            filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
+        });
+    var sites creep.pos.findClosest(FIND_CONSTRUCTION_SITES);
+    // Is action set?
+    if(creep.memory.action==null)
+    {
+        // What should this creep do right now?
+        
+        });
+        if(walls.length>0)
+        {
+            creep.memory.action='walls';
+        }
+        else if(sites.length>0)
+        {
+            creep.memory.action='sites';
+        }
+        else
+        {
+            creep.memory.action='idle';
+        }
+    }
+    // Should the action be unset?
+    else
+    {
+        if(creep.memory.action!='idle')
+        {
+            if(walls.length <= 0 && creep.memory.action='walls')
+            {
+                creep.memory.action=null;
+            }
+            else if(sites.length <= 0 && creep.memory.action='sites')
+            {
+                creep.memory.action=null;
+            }
+            else
+            {
+                if((walls.length || sites.length) && creep.memory.action=='idle')
+                {
+                    creep.memory.action=null;
+                }
+            }
+        }
+    }
 }
 // getEnergy(creep): Logic for obtaining energy.
 function getEnergy(creep)
@@ -111,7 +199,7 @@ function getEnergy(creep)
     var creepEnergy = creep.carry.energy;
     var creepCapacity = creep.carry.capacity;
     var withdrawE = creepCapacity - creepEnergy;
-    var energyStorage = creep.room.findClosest(FIND_STRUCTURES, {
+    var energyStorage = creep.pos.findClosest(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_CONTAINER || i.structureType==STRUCTURE_STORAGE)
             && i.energy > 0)
     });

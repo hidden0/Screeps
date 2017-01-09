@@ -46,9 +46,13 @@ function reinforceWalls(creep)
     var walls;
     var wallStr = 500; // default wall strength so nothing is ever at 1
     var targetWall; // The wall this creep is currently working on
-    if(Game.spawns['Spawn1'].memory.wallStr!=null)
+    /* Fix to make creps work multi-room */
+    var roomSpawn = creep.room.findClosest(FIND_MY_STRUCTURES, {
+        filter: { structureType: STRUCTURE_SPAWN }
+    });
+    if(roomSpawn.memory.wallStr!=null)
     {
-        wallStr = Game.spawn['Spawn1'].memory.wallStr;
+        wallStr = roomSpawn.memory.wallStr;
     }
     // Do we have energy for the creep?
     if(creep.energy < creep.carry.capacity)

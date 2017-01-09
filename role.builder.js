@@ -1,9 +1,8 @@
 var roleBuilder = {
-    /** @param {Creep} creep **/
-    /***
-        Description: To maintain the hive. The builder ensures all buildings are constructed, and walls maintained.
+    /** @param {Creep} creep
+        @Description: To maintain the hive. The builder ensures all buildings are constructed, and walls maintained.
 
-        Logic Flow (priority by number with 1 being highest priority)
+        Logic Flow / States (priority by number with 1 being highest priority)
             - 1) Wall upkeep. The spawn will hold a value for wallStr in memory, and this should be the
                 minimum wall strength of all walls in the current room. Maintain this first!
                 creep.memory.action = 'walls';
@@ -11,7 +10,7 @@ var roleBuilder = {
                 creep.memory.action = 'sites';
             - 3) Chill out at the builder flag (idle mode). Just be ready for scenario 1 or 2.
                 creep.memory.action = 'idle';
-    ***/
+    **/
     run: function(creep) {
         // Tell the creep what to do based on the action value, if null figure out what state to
         switch(creep.memory.action)
@@ -133,12 +132,12 @@ function buildSites(creep)
     }
 }
 // goIdle(creep): Nothing to do so chill at flag or default positions.
+// *TODO* This needs to be unique to a room, so prefixing the name with the room name would be ideal.
 function goIdle(creep)
 {
-    var idlePos = null; // Assume there is no flag set for an idle position
-    if(Game.flags['BuilderIdle1'])
+    if(Game.flags['idle'])
     {
-        creep.moveTo(Game.flags['BuilderIdle1']);
+        creep.moveTo(Game.flags['idle']);
     }
     else
     {

@@ -82,35 +82,35 @@ function handleSpawnMemory(theSpawn)
         switch(command)
         {
         	case "spawnController":
-        		spawnCreep("controller");
+        		spawnCreep("controller",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnController2":
-        		spawnCreep("controller2");
+        		spawnCreep("controller2",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnMiner":
-        		spawnCreep("miner");
+        		spawnCreep("miner",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnMiner2":
-        		spawnCreep("miner2");
+        		spawnCreep("miner2",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnBuilder":
-        		spawnCreep("builder");
+        		spawnCreep("builder",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnBuilder2":
-        		spawnCreep("builder2");
+        		spawnCreep("builder2",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnSupply":
-        		spawnCreep("supply");
+        		spawnCreep("supply",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	case "spawnExpansion":
-        		spawnCreep("expand");
+        		spawnCreep("expand",theSpawn);
             	theSpawn.memory.command=null;
         		break;
         	default:

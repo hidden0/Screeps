@@ -57,7 +57,7 @@ function goIdle(creep)
     }
     else
     {
-        creep.moveTo((mySpawn.pos.x+10), mySpawn.pos.y+10);
+        creep.moveTo((creep.room.controller.pos.x+10), creep.room.controller.pos.y+10);
     }
 }
 

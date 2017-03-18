@@ -25,51 +25,17 @@ module.exports.loop = function () {
 	// Added: For multiple room logic
 	for (var mySpawn in Game.spawns)
 	{
+		var liveSpawn = Game.spawns[mySpawn];
 	    // Init checks for loop start
-	    init(mySpawn);
+	    init(liveSpawn);
 	    // Handle creeps
-	    manageCreeps(mySpawn);
+	    manageCreeps(liveSpawn);
 	    // Handle memory for spawn
-	    handleSpawnMemory(mySpawn);
+	    handleSpawnMemory(liveSpawn);
 	    // Tell towers what to do
-	    handleTowers(mySpawn);
-	    // Structure automation
-	    buildExtensions(mySpawn);
+	    handleTowers(liveSpawn);
 	}
 };
-
-// Build extensions automatically
-function buildExtensions(spawnPoint)
-{
-	var extensionCount = spawnPoint.room.find(FIND_STRUCTURES, {
-            filter: (structure) => {
-                return (structure.structureType == STRUCTURE_EXTENSION);
-            }
-    });
-	if(spawnPoint.room.controller.level==2 && extensionCount<3)
-	{
-		var base_x = spawnPoint.pos.x;
-		var base_y = spawnPoint.pos.y-2;
-
-		var x_offset=2;
-		spawnPoint.room.createConstructionSite((base_x-x_offset-1), (base_y+2), STRUCTURE_CONTAINER);
-
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-1), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-2), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-1), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-2), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-3), STRUCTURE_EXTENSION);
-	}
-	else if(spawnPoint.room.controller.level==3 && extensionCount<10)
-	{
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-3), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-4), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-5), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-6), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-4), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-5), STRUCTURE_EXTENSION);
-	}
-}
 
 // Handles Towers
 function handleTowers(theSpawn)
@@ -152,7 +118,7 @@ function handleSpawnMemory(theSpawn)
     }
 }
 
-function trySpawn(name,body)
+function trySpawn(name,body,theSpawn)
 {
 	var result = theSpawn.canCreateCreep(body, name);
 	if(result == OK) {
@@ -162,7 +128,7 @@ function trySpawn(name,body)
 	}
 	else if(result!=ERR_BUSY)
 	{
-		console.log("Error spawning " + name + ":" + result);
+		//console.log("Error spawning " + name + ":" + result);
 		return false;
 	}
 	else
@@ -170,64 +136,64 @@ function trySpawn(name,body)
 		return false;
 	}
 }
-function spawnCreep(type)
+function spawnCreep(type,theSpawn)
 {
-	var creepName = type+mySpawns[0].memory.creepId;
+	var creepName = type+theSpawn.memory.creepId;
 	var newCreep;
 
 	switch(type)
 	{
 		case "expand":
-			if(trySpawn(creepName,expanderBody))
+			if(trySpawn(creepName,expanderBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="expand";
 			}
 			break;
 		case "supply":
-			if(trySpawn(creepName,l2SupplyBody))
+			if(trySpawn(creepName,l2SupplyBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="supply";
 			}
 			break;
 		case "miner":
-			if(trySpawn(creepName,basicCreepBody))
+			if(trySpawn(creepName,basicCreepBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="miner";
 			}
 			break;
 		case "miner2":
-			if(trySpawn(creepName,l2MinerBody))
+			if(trySpawn(creepName,l2MinerBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="miner";
 			}
 			break;
 		case "builder":
-			if(trySpawn(creepName,basicCreepBody))
+			if(trySpawn(creepName,basicCreepBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="builder";
 			}
 			break;
 		case "builder2":
-			if(trySpawn(creepName,l2BuilderBody))
+			if(trySpawn(creepName,l2BuilderBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="builder";
 			}
 			break;
 		case "controller":
-			if(trySpawn(creepName,basicCreepBody))
+			if(trySpawn(creepName,basicCreepBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="controller";
 			}
 			break;
 		case "controller2":
-			if(trySpawn(creepName,l2ControllerBody))
+			if(trySpawn(creepName,l2ControllerBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="controller";
@@ -335,27 +301,27 @@ function manageCreeps(theSpawn)
 		{
 			// We can spawn a big creep
 			//console.log("Spawning miner2");
-			spawnCreep("miner2");
+			spawnCreep("miner2",theSpawn);
 		}
 		else if (cLevel==0)
 		{
 			// Quick builder/controller build boost
 			if(miners.current<3)
 			{
-				spawnCreep("miner");
+				spawnCreep("miner",theSpawn);
 			}
 			else if(controllers.current==0 && miners.current > 6)
 			{
-				spawnCreep("controller");
+				spawnCreep("controller",theSpawn);
 			}
 			else if(builders.current==0 && miners.current > 6)
 			{
-				spawnCreep("builder");
+				spawnCreep("builder",theSpawn);
 			}
 			else
 			{
 				// Spawn a little creep
-				spawnCreep("miner");
+				spawnCreep("miner",theSpawn);
 			}
 		}
     }
@@ -364,11 +330,11 @@ function manageCreeps(theSpawn)
 	    if(cLevel>=1)
 	    {
 	        // Build a level 2 builder/upgrader
-	        spawnCreep("controller2");
+	        spawnCreep("controller2",theSpawn);
 	    }
 	    else if (cLevel==0)
 	    {
-		    spawnCreep("controller");
+		    spawnCreep("controller",theSpawn);
 	    }
 	}
 	if(builders.current<builders.max && miners.current > 6)
@@ -378,11 +344,11 @@ function manageCreeps(theSpawn)
 	    if(cLevel>=1)
 	    {
 	        // Build a level 2 builder/upgrader
-	        spawnCreep("builder2");
+	        spawnCreep("builder2",theSpawn);
 	    }
 	    else if (cLevel==0 && targets.length)
 	    {
-		    spawnCreep("builder");
+		    spawnCreep("builder",theSpawn);
 	    }
 	}
 	if(suppliers.current<suppliers.max && miners.current > 6)
@@ -391,11 +357,11 @@ function manageCreeps(theSpawn)
 	    if(cLevel>=1)
 	    {
 	        // Build a level 2 builder/upgrader
-	        spawnCreep("supply");
+	        spawnCreep("supply",theSpawn);
 	    }
 	    else if (cLevel==0)
 	    {
-		    spawnCreep("supply");
+		    spawnCreep("supply",theSpawn);
 	    }
 	}
 }

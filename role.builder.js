@@ -147,16 +147,14 @@ function goIdle(creep)
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)
 {
-    var walls = creep.pos.findClosest(FIND_STRUCTURES, {
+    var walls = creep.room.findClosest(FIND_STRUCTURES, {
             filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
         });
-    var sites creep.pos.findClosest(FIND_CONSTRUCTION_SITES);
+    var sites = creep.pos.findClosest(FIND_CONSTRUCTION_SITES);
     // Is action set?
     if(creep.memory.action==null)
     {
         // What should this creep do right now?
-        
-        });
         if(walls.length>0)
         {
             creep.memory.action='walls';
@@ -175,11 +173,11 @@ function setState(creep)
     {
         if(creep.memory.action!='idle')
         {
-            if(walls.length <= 0 && creep.memory.action='walls')
+            if(walls.length <= 0 && creep.memory.action=='walls')
             {
                 creep.memory.action=null;
             }
-            else if(sites.length <= 0 && creep.memory.action='sites')
+            else if(sites.length <= 0 && creep.memory.action=='sites')
             {
                 creep.memory.action=null;
             }

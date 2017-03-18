@@ -542,7 +542,7 @@ function checkLevel()
 // Sets the maximum buildre/supplier/controller per game level defined by operator (ME! :) )
 function setMaxByLevel()
 {
-	var level = mySpawns[0].memory.level;
+	var level = Game.spawns['Spawn1'].room.controller.level;
 	var max = Math.round(level*1.5);
 	if(max==0)
 	{
@@ -574,13 +574,14 @@ function setMaxBuilders()
 }
 function setMaxSupply()
 {
+    /*
 	var targets = mySpawns[0].room.find(FIND_STRUCTURES, {
             filter: (structure) => {
                 return (structure.structureType == STRUCTURE_EXTENSION);
             }
     });
-    var maxSupply = Math.round(targets.length/8);
-	return maxSupply;
+    var maxSupply = Math.round(targets.length/8);*/
+	return 1;
 }
 
 // Counts distance to all sources in a room for handling distance mod for maximum miners

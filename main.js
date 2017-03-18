@@ -4,9 +4,6 @@ var buildRole = require("role.builder");
 var supplyRole = require("role.supply");
 var expandRole = require("role.expand");
 
-// Setup - Identify number of sources, number of open mining spots around it, and how many miners show be built for the current room
-var mySpawns = [Game.spawns['Spawn1']];
-
 // Maximum creep counts for automation
 var miners;
 var controllers;
@@ -14,7 +11,6 @@ var builders;
 var suppliers;
 
 var creepId;
-var gameLevel;
 
 /* Creep body definitions */
 var basicCreepBody = [WORK, CARRY, MOVE];
@@ -26,68 +22,38 @@ var l2ControllerBody = [WORK,WORK,WORK,WORK,CARRY,MOVE,MOVE];
 var expanderBody = [CLAIM,MOVE,MOVE,MOVE,MOVE,MOVE];
 
 module.exports.loop = function () {
-    // Init checks for loop start
-    init();
-    // Handle creeps
-    manageCreeps();
-    // Handle memory for spawn
-    handleSpawnMemory();
-    // Tell towers what to do
-    handleTowers();
-    // Structure automation
-    buildExtensions(mySpawns[0]);
+	// Added: For multiple room logic
+	for (var mySpawn in Game.spawns)
+	{
+		var liveSpawn = Game.spawns[mySpawn];
+	    // Init checks for loop start
+	    init(liveSpawn);
+	    // Handle creeps
+	    manageCreeps(liveSpawn);
+	    // Handle memory for spawn
+	    handleSpawnMemory(liveSpawn);
+	    // Tell towers what to do
+	    handleTowers(liveSpawn);
+	}
 };
 
-// Build extensions automatically
-function buildExtensions(spawnPoint)
-{
-	var extensionCount = spawnPoint.room.find(FIND_STRUCTURES, {
-            filter: (structure) => {
-                return (structure.structureType == STRUCTURE_EXTENSION);
-            }
-    });
-	if(spawnPoint.room.controller.level==2 && extensionCount<3)
-	{
-		var base_x = spawnPoint.pos.x;
-		var base_y = spawnPoint.pos.y-2;
-
-		var x_offset=2;
-		spawnPoint.room.createConstructionSite((base_x-x_offset-1), (base_y+2), STRUCTURE_CONTAINER);
-
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-1), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-2), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-1), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-2), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-3), STRUCTURE_EXTENSION);
-	}
-	else if(spawnPoint.room.controller.level==3 && extensionCount<10)
-	{
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-3), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-4), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-5), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x-x_offset), (base_y-6), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-4), STRUCTURE_EXTENSION);
-		spawnPoint.room.createConstructionSite((base_x+x_offset), (base_y-5), STRUCTURE_EXTENSION);
-	}
-}
-
 // Handles Towers
-function handleTowers()
+function handleTowers(theSpawn)
 {
 	// Targetting
-	var towers = mySpawns[0].room.find(
+	var towers = theSpawn.room.find(
             FIND_MY_STRUCTURES, {filter: {structureType: STRUCTURE_TOWER}});
-	var tRepairTargets = mySpawns[0].room.find(FIND_STRUCTURES, {
+	var tRepairTargets = theSpawn.room.find(FIND_STRUCTURES, {
                 filter: (i) => (i.hits < (i.hitsMax) && i.structureType!=STRUCTURE_WALL)
             });
-	var hostiles = mySpawns[0].room.find(FIND_HOSTILE_CREEPS);
+	var hostiles = theSpawn.room.find(FIND_HOSTILE_CREEPS);
 
 	// Prioritize hostiles!
     
     if(hostiles.length > 0) 
     {
         var username = hostiles[0].owner.username;
-        Game.notify(`User ${username} spotted in room ${Game.spawns['Spawn1'].roomName}`);
+        Game.notify(`User ${username} spotted in room ${theSpawn.roomName}`);
         
         towers.forEach(tower => tower.attack(hostiles[0]));
     }
@@ -105,81 +71,64 @@ function handleTowers()
         }
 	}
 }
-function handleSpawnMemory()
+function handleSpawnMemory(theSpawn)
 {
-    mySpawns[0].memory.optimalMiners=miners.max;
-    if(mySpawns[0].memory.command!=null)
+    theSpawn.memory.optimalMiners=miners.max;
+    if(theSpawn.memory.command!=null)
     {
-        var command = mySpawns[0].memory.command;
+        var command = theSpawn.memory.command;
         switch(command)
         {
         	case "spawnController":
         		spawnCreep("controller");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnController2":
         		spawnCreep("controller2");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnMiner":
         		spawnCreep("miner");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnMiner2":
         		spawnCreep("miner2");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnBuilder":
         		spawnCreep("builder");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnBuilder2":
         		spawnCreep("builder2");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnSupply":
         		spawnCreep("supply");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	case "spawnExpansion":
         		spawnCreep("expand");
-            	mySpawns[0].memory.command=null;
+            	theSpawn.memory.command=null;
         		break;
         	default:
-        		mySpawns[0].memory.command=null;
+        		theSpawn.memory.command=null;
         		break;
         }
     }
-	if(mySpawns[0].memory.minerOverride)
-	{
-		optMiners=3;
-	}
-	if(mySpawns[0].memory.command=="reset_miners")
-	{
-		optMiners = mapSources(mySpawns[0].room);
-		for(var i in Game.creeps)
-		{
-			var creep = Game.creeps[i];
-			if(creep.memory.role=="miner")
-			{
-				creep.memory.sourceMine=null;
-			}
-		}
-		mySpawns[0].memory.command=null;
-	}
 }
 
-function trySpawn(name,body)
+function trySpawn(name,body,theSpawn)
 {
-	var result = mySpawns[0].canCreateCreep(body, name);
+	var result = theSpawn.canCreateCreep(body, name);
 	if(result == OK) {
-	    mySpawns[0].createCreep(body, name);
-	    mySpawns[0].memory.creepId+=1;
+	    theSpawn.createCreep(body, name);
+	    theSpawn.memory.creepId+=1;
 	    return true;
 	}
 	else if(result!=ERR_BUSY)
 	{
-		console.log("Error spawning " + name + ":" + result);
+		//console.log("Error spawning " + name + ":" + result);
 		return false;
 	}
 	else
@@ -187,91 +136,91 @@ function trySpawn(name,body)
 		return false;
 	}
 }
-function spawnCreep(type)
+function spawnCreep(type,theSpawn)
 {
-	var creepName = type+mySpawns[0].memory.creepId;
+	var creepName = type+theSpawn.memory.creepId;
 	var newCreep;
 
 	switch(type)
 	{
 		case "expand":
-			if(trySpawn(creepName,expanderBody))
+			if(trySpawn(creepName,expanderBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="expand";
 			}
 			break;
 		case "supply":
-			if(trySpawn(creepName,l2SupplyBody))
+			if(trySpawn(creepName,l2SupplyBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="supply";
 			}
 			break;
 		case "miner":
-			if(trySpawn(creepName,basicCreepBody))
+			if(trySpawn(creepName,basicCreepBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="miner";
 			}
 			break;
 		case "miner2":
-			if(trySpawn(creepName,l2MinerBody))
+			if(trySpawn(creepName,l2MinerBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="miner";
 			}
 			break;
 		case "builder":
-			if(trySpawn(creepName,basicCreepBody))
+			if(trySpawn(creepName,basicCreepBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="builder";
 			}
 			break;
 		case "builder2":
-			if(trySpawn(creepName,l2BuilderBody))
+			if(trySpawn(creepName,l2BuilderBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="builder";
 			}
 			break;
 		case "controller":
-			if(trySpawn(creepName,basicCreepBody))
+			if(trySpawn(creepName,basicCreepBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="controller";
 			}
 			break;
 		case "controller2":
-			if(trySpawn(creepName,l2ControllerBody))
+			if(trySpawn(creepName,l2ControllerBody,theSpawn))
 			{
 				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="controller2";
+				newCreep.memory.role="controller";
 			}
 			break;
 	}
 }
 
-function init()
+function init(theSpawn)
 {
 	// Initialize creep ID for unique names
 
-	if(mySpawns[0].memory.creepId==null)
+	if(theSpawn.memory.creepId==null)
 	{
-		mySpawns[0].memory.creepId=0;
+		theSpawn.memory.creepId=0;
 	}
 
 	// Game starts at level 0
 
-	if(mySpawns[0].memory.level==null)
+	if(theSpawn.memory.level==null)
 	{
-		mySpawns[0].memory.level=0;
+		theSpawn.memory.level=0;
 	}
 
 	// Always control the level intelligently
 
-	checkLevel();
+	checkLevel(theSpawn);
 
     // Reset all counters if init has not been processed
 	// Zero out counters for each creep type
@@ -281,18 +230,18 @@ function init()
     suppliers 	= {current:0, max:0};
 
     // Set proper maximums
-    miners.max 		= setMaxMiners();
-    controllers.max	= setMaxByLevel();
-    builders.max 	= setMaxBuilders()
+    miners.max 		= setMaxMiners(theSpawn);
+    controllers.max	= setMaxByLevel(theSpawn);
+    builders.max 	= setMaxBuilders(theSpawn)
     suppliers.max 	= setMaxSupply();
 
     // Set that we"ve checked this
-    mySpawns[0].memory.initRan=true;
+    theSpawn.memory.initRan=true;
 
-    mySpawns[0].memory.initCheck = Game.time;
+    theSpawn.memory.initCheck = Game.time;
 
     // Set a wall strength to aim for
-    mySpawns[0].memory.wallStr = 15000;
+    theSpawn.memory.wallStr = 15000;
 
 	miners.current 		= 0;
     controllers.current	= 0;
@@ -301,17 +250,13 @@ function init()
 	
 	// Update current counts
 
-    miners.current	 	= _.filter(Game.creeps, (creep) => creep.memory.role == "miner").length;
-    miners.current	 	+= _.filter(Game.creeps, (creep) => creep.memory.role == "miner2").length;
-    controllers.current	= _.filter(Game.creeps, (creep) => creep.memory.role=="controller").length;
-    controllers.current += _.filter(Game.creeps, (creep) => creep.memory.role=="controller2").length;
-   	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role=="builder").length;
-   	builders.current	+= _.filter(Game.creeps, (creep) => creep.memory.role=="builder2").length;
-   	suppliers.current	= _.filter(Game.creeps, (creep) => creep.memory.role=="supply").length;
-   	
+    miners.current	 	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('miner')).length;
+    controllers.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('controller')).length;
+   	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes("builder")).length;
+   	suppliers.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('supply')).length;
 }
 
-function manageCreeps()
+function manageCreeps(theSpawn)
 {
     for (var name in Game.creeps)
     {
@@ -344,7 +289,7 @@ function manageCreeps()
     }
     
 	// Automate miner population
-	var cLevel = mySpawns[0].memory.level;
+	var cLevel = theSpawn.memory.level;
 	//console.log("---------------------------------");
 	//console.log("Miners - Cur:" + miners.current + " - Max:" + miners.max);
 	//console.log("Builders - Cur:" + builders.current + " - Max:" + builders.max);
@@ -356,27 +301,27 @@ function manageCreeps()
 		{
 			// We can spawn a big creep
 			//console.log("Spawning miner2");
-			spawnCreep("miner2");
+			spawnCreep("miner2",theSpawn);
 		}
 		else if (cLevel==0)
 		{
 			// Quick builder/controller build boost
 			if(miners.current<3)
 			{
-				spawnCreep("miner");
+				spawnCreep("miner",theSpawn);
 			}
 			else if(controllers.current==0 && miners.current > 6)
 			{
-				spawnCreep("controller");
+				spawnCreep("controller",theSpawn);
 			}
 			else if(builders.current==0 && miners.current > 6)
 			{
-				spawnCreep("builder");
+				spawnCreep("builder",theSpawn);
 			}
 			else
 			{
 				// Spawn a little creep
-				spawnCreep("miner");
+				spawnCreep("miner",theSpawn);
 			}
 		}
     }
@@ -385,25 +330,25 @@ function manageCreeps()
 	    if(cLevel>=1)
 	    {
 	        // Build a level 2 builder/upgrader
-	        spawnCreep("controller2");
+	        spawnCreep("controller2",theSpawn);
 	    }
 	    else if (cLevel==0)
 	    {
-		    spawnCreep("controller");
+		    spawnCreep("controller",theSpawn);
 	    }
 	}
 	if(builders.current<builders.max && miners.current > 6)
 	{
-		var targets = mySpawns[0].room.find(FIND_CONSTRUCTION_SITES);
+		var targets = theSpawn.room.find(FIND_CONSTRUCTION_SITES);
 
 	    if(cLevel>=1)
 	    {
 	        // Build a level 2 builder/upgrader
-	        spawnCreep("builder2");
+	        spawnCreep("builder2",theSpawn);
 	    }
 	    else if (cLevel==0 && targets.length)
 	    {
-		    spawnCreep("builder");
+		    spawnCreep("builder",theSpawn);
 	    }
 	}
 	if(suppliers.current<suppliers.max && miners.current > 6)
@@ -412,11 +357,11 @@ function manageCreeps()
 	    if(cLevel>=1)
 	    {
 	        // Build a level 2 builder/upgrader
-	        spawnCreep("supply");
+	        spawnCreep("supply",theSpawn);
 	    }
 	    else if (cLevel==0)
 	    {
-		    spawnCreep("supply");
+		    spawnCreep("supply",theSpawn);
 	    }
 	}
 }
@@ -454,7 +399,7 @@ function mapSources(theSpawn)
 	
 	// check distance from storage maybe? Let"s keep it simple for now
 	//console.log("Total minable spaces: " + totalOpenSpaces);
-	mySpawns[0].memory.energyScan=false;
+	theSpawn.memory.energyScan=false;
 	return totalOpenSpaces+distanceMod;	
 }
 function checkOpenSpace(obj)
@@ -496,12 +441,16 @@ function checkOpenSpace(obj)
 }
 
 // Checks the current game level and updates memory
-function checkLevel()
+/* TODO: This needs heavily tweaked. The impacts of the current values work up until now,
+but gameplay is about to reach another tier (i.e. attacking/defending/building/transferring/multiple room control)
+and the impact of this is not known as of yet.
+*/
+function checkLevel(theSpawn)
 {
-	var theRoom = mySpawns[0].room;
+	var theRoom = theSpawn.room;
 	var cLevel = 0; // start at creep level 0
     var targets=null;
-    var totalEnergy = mySpawns[0].room.energyAvailable;
+    var totalEnergy = theSpawn.room.energyAvailable;
 	targets = theRoom.find(FIND_STRUCTURES, {
 			filter: (structure) => {
 				return (structure.structureType == STRUCTURE_EXTENSION)
@@ -536,13 +485,13 @@ function checkLevel()
         cLevel = 0;
     }
 
-    mySpawns[0].memory.level=cLevel;
+    theSpawn.memory.level=cLevel;
 }
 
 // Sets the maximum buildre/supplier/controller per game level defined by operator (ME! :) )
-function setMaxByLevel()
+function setMaxByLevel(theSpawn)
 {
-	var level = Game.spawns['Spawn1'].room.controller.level;
+	var level = theSpawn.room.controller.level;
 	var max = Math.round(level*1.5);
 	if(max==0)
 	{
@@ -553,18 +502,18 @@ function setMaxByLevel()
 
 // Counts open spaces to mine, and does some math to account for distance to the mining nodes
 // Returns max miners for a room to be efficient at all times
-function setMaxMiners()
+function setMaxMiners(theSpawn)
 {
-	var openSpaces 		= mapSources(mySpawns[0]);
-	var totalDistance	= mapDistance(mySpawns[0]);
+	var openSpaces 		= mapSources(theSpawn);
+	var totalDistance	= mapDistance(theSpawn);
 	var distanceMod 	= Math.round(totalDistance/20);
 
 	return openSpaces+distanceMod;
 }
 
-function setMaxBuilders()
+function setMaxBuilders(theSpawn)
 {
-	var targets = mySpawns[0].room.find(FIND_CONSTRUCTION_SITES);
+	var targets = theSpawn.room.find(FIND_CONSTRUCTION_SITES);
 	var max = 1;
 	if(targets.length>0)
 	{
@@ -575,7 +524,7 @@ function setMaxBuilders()
 function setMaxSupply()
 {
     /*
-	var targets = mySpawns[0].room.find(FIND_STRUCTURES, {
+	var targets = theSpawn.room.find(FIND_STRUCTURES, {
             filter: (structure) => {
                 return (structure.structureType == STRUCTURE_EXTENSION);
             }

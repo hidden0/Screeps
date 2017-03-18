@@ -1,111 +1,99 @@
 var roleController = {
+    /** @param {Creep} creep 
+        @Description: This creep maintains the controller, vital for gaining leaderboard points and upgrading the room. Simple job.
 
-    /** @param {Creep} creep **/
+        Logic Flow / States:
+            1 - There is stored energy in the room. Obtain closest *based on controller's position* energy source to upgrade the controller.
+                function: getPoints(creep)
+            2 - Nothing to do. Hang out at the nearest "idle" flag in the room.
+                function: goIdle(creep)
+    **/
     run: function(creep) {
-        //console.log("Creep: "+creep.name + " Building: " + creep.memory.building + " Cur Energy: " + creep.carry.energy + " Capacity: " + creep.carryCapacity + " Home Spawn Energy: " + Game.spawns['Home'].energy);
-        if(creep.carry.energy < creep.carryCapacity && Game.spawns['Spawn1'].room.energyAvailable>600  && !creep.memory.building)
+        // Tell the creep what to do based on the action value, if null figure out what state to
+        switch(creep.memory.action)
         {
-            //console.log("Should be going home");
-            creep.memory.grab=true;
-            // Grab energy where there is >50 energy to grab - checking container's first
-			var energyStorage = creep.room.find(FIND_STRUCTURES, {
-                    filter: (i) => (i.structureType == STRUCTURE_CONTAINER || i.structureType == STRUCTURE_STORAGE) &&
-                                   i.store[RESOURCE_ENERGY] > 50
-                });
-        	var energySpawn = creep.room.find(FIND_STRUCTURES, {
-                filter: (i) => (i.structureType == STRUCTURE_SPAWN) &&
-                               i.energy > 200
-            });
-
-            var closestStorage = mapDistance(creep);
-            if(closestStorage.length>0)
-            {
-                var container = Game.getObjectById(closestStorage[0].split(":")[1]);
-                if( creep.withdraw(container,RESOURCE_ENERGY,creep.carryCapacity) == ERR_NOT_IN_RANGE ) {
-					creep.moveTo(container);
-				}
-            }
+            // Creep is gettings points
+            case 'points':
+                getPoints(creep);
+                break;
+            // Creep is chilling out
+            case 'idle':
+                goIdle(creep);
+                break;
+            // Creep doesn't have a state set (either new creep or previous job done). State manage
+            default:
+                setState(creep);
+                break;
         }
-        else
-        {
-            creep.memory.grab=false;
-        }
-	    if(creep.memory.building && creep.carry.energy == 0) {
-            creep.memory.building = false;
-            //creep.say('harvesting');
-	    }
-	    if(!creep.memory.building && creep.carry.energy == creep.carryCapacity) {
-	        creep.memory.building = true;
-	    }
-
-	    if(creep.memory.building) {
-	        // Upgrade controller
-            //creep.say("Upgrading");
-	        if(creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
-                creep.moveTo(creep.room.controller);
-            }
-	    }
-	    else if(Game.spawns['Spawn1'].room.energyAvailable<600) {
-	        var sources = creep.room.find(FIND_SOURCES);
-            if(creep.harvest(sources[0]) == ERR_NOT_IN_RANGE && !creep.memory.grab) {
-                creep.moveTo(sources[0]);
-            }
-	    }
-	}
+    }
 };
 
-// Counts distance to an energy container in a room for handling distance
-function mapDistance(creep)
-{
-    var distanceCounter = new Array();
-    var energyStorage = creep.room.find(FIND_STRUCTURES, {
-        filter: (i) => (i.structureType == STRUCTURE_CONTAINER || i.structureType == STRUCTURE_STORAGE) &&
-                       i.store[RESOURCE_ENERGY] > 50
-    });
-    var spawn_xPos = creep.pos.x;
-    var spawn_yPos = creep.pos.y;
-    var i=0;
-    while (i<energyStorage.length)
+// getPoints(creep): Go upgrade the controller!
+function getPoints(creep) {
+    // Upgrade the controller
+
+    // Get energy if low
+    if(creep.energy<creep.creepCapacity)
     {
-        // Find the distance via pythagorean theorem to this source
-
-        var source_xPos = energyStorage[i].pos.x;
-        var source_yPos = energyStorage[i].pos.y;
-        var x_1 = 0;
-        var x_2 = 0;
-        var y_1 = 0;
-        var y_2 = 0;
-        if(spawn_xPos > source_xPos)
-        {
-            x_2 = spawn_xPos;
-            x_1 = source_xPos;
-        }
-        else
-        {
-            x_1 = spawn_xPos;
-            x_2 = source_xPos;
-        }
-        if(spawn_yPos > source_yPos)
-        {
-            y_2 = spawn_yPos;
-            y_1 = source_yPos;
-        }
-        else
-        {
-            y_1 = spawn_yPos;
-            y_2 = source_yPos;
-        }
-        var xCalc = ((x_2-x_1)*(x_2-x_1));
-        var yCalc = ((y_2-y_1)*(y_2-y_1));
-
-        var distance = Math.sqrt(xCalc+yCalc);
-        distanceCounter[i]=distance+":"+energyStorage[i].id;  
-        i++;    
+        getEnergy(creep);
     }
 
-    // Sort the list
-    distanceCounter.sort(function(a, b){return (a.split(':')[0])-(b.split(':')[0])});
-
-    return distanceCounter;
+    // Else, upgrade the controller
+    else
+    {
+        if(creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(creep.room.controller);
+        }
+    }
 }
+// goIdle(creep): Nothing to do so chill at flag or default positions.
+// *TODO* This needs to be unique to a room, so prefixing the name with the room name would be ideal.
+function goIdle(creep)
+{
+    if(Game.flags['idle'])
+    {
+        creep.moveTo(Game.flags['idle']);
+    }
+    else
+    {
+        creep.moveTo((creep.room.controller.pos.x+10), creep.room.controller.pos.y+10);
+    }
+}
+
+// setState(creep): Figure out what state the creep should be in now.
+function setState(creep)
+{
+    // Is there more than 200 spare energy in the room?
+    var roomEnergy = creep.room.energyAvailable;
+    if(roomEnergy > 200) {
+        // Find the closest storage container to the controller that has energy in it
+        creep.memory.action="points";
+    }
+    else {
+        creep.memory.action="idle";
+    }
+}
+
+// getEnergy(creep): Logic for obtaining energy.
+// controller note: this is based on controller position, not creep.
+function getEnergy(creep)
+{
+    /*
+        Energy logic: Find the closest energy containing item and use it
+    */
+    var theController = creep.room.controller;
+    var creepEnergy = creep.carry.energy;
+    var creepCapacity = creep.carry.capacity;
+    var withdrawE = creepCapacity - creepEnergy;
+    var energyStorage = theController.pos.findClosest(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_CONTAINER || i.structureType==STRUCTURE_STORAGE)
+            && i.energy > 0)
+    });
+    if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+    {
+        creep.moveTo(energyStorage[0]);
+    }
+}
+
 module.exports = roleController;

@@ -1,98 +1,211 @@
 var roleBuilder = {
+    /** @param {Creep} creep
+        @Description: To maintain the hive. The builder ensures all buildings are constructed, and walls maintained.
 
-    /** @param {Creep} creep **/
+        Logic Flow / States (priority by number with 1 being highest priority)
+            - 1) Wall upkeep. The spawn will hold a value for wallStr in memory, and this should be the
+                minimum wall strength of all walls in the current room. Maintain this first!
+                creep.memory.action = 'walls';
+            - 2) Constructions sites. The builder, if not busy with walls, will build construction sites if they exist.
+                creep.memory.action = 'sites';
+            - 3) Chill out at the builder flag (idle mode). Just be ready for scenario 1 or 2.
+                creep.memory.action = 'idle';
+    **/
     run: function(creep) {
-        //console.log("Creep: "+creep.name + " Building: " + creep.memory.building + " Cur Energy: " + creep.carry.energy + " Capacity: " + creep.carryCapacity + " Home Spawn Energy: " + Game.spawns['Home'].energy);
-        // This creep will build any constructions that require put together.
-        var mySpawn = Game.spawns['Spawn1'];
-		var targets = creep.room.find(FIND_CONSTRUCTION_SITES);
-        var desiredWallStrength=500; // default wall strength
-        if(mySpawn.memory.wallStr!=null)
+        // Tell the creep what to do based on the action value, if null figure out what state to
+        switch(creep.memory.action)
         {
-            desiredWallStrength = mySpawn.memory.wallStr;
+            // Creep is reinforcing walls
+            case 'walls':
+                reinforceWalls(creep);
+                break;
+            // Creep is building construction sites
+            case 'sites':
+                buildSites(creep);
+                break;
+            // Creep is chilling out
+            case 'idle':
+                goIdle(creep);
+                break;
+            // Creep doesn't have a state set (either new creep or previous job done). State manage
+            default:
+                setState(creep);
+                break;
         }
-        var walls = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.structureType == STRUCTURE_WALL && i.hits < desiredWallStrength)
-        });
-
-		if(targets.length || walls.length) 
-		{
-			// There is something to build
-			
-			// Grab energy where there is >50 energy to grab - checking container's first
-            var withDrawValue = creep.carryCapacity-creep.energy;
-            var energyStorage = creep.room.find(FIND_STRUCTURES, {
-                    filter: (i) => (i.structureType == STRUCTURE_STORAGE) &&
-                                   i.store[RESOURCE_ENERGY] > 200
-                });
-			var energyStorageContainer = creep.room.find(FIND_STRUCTURES, {
-                    filter: (i) => (i.structureType == STRUCTURE_CONTAINER) &&
-                                   i.store[RESOURCE_ENERGY] > 200
-                });
-        	var energySpawn = creep.room.find(FIND_STRUCTURES, {
-                filter: (i) => (i.structureType == STRUCTURE_SPAWN) &&
-                               i.energy > 250
-            });
-            if(energyStorage.length>0)
-            {
-                if( creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withDrawValue) == ERR_NOT_IN_RANGE ) {
-                    creep.moveTo(energyStorage[0]);
-                }
-            }
-            else if(energyStorageContainer.length>0)
-            {
-                if( creep.withdraw(energyStorageContainer[0],RESOURCE_ENERGY,withDrawValue) == ERR_NOT_IN_RANGE ) {
-					creep.moveTo(energyStorageContainer[0]);
-				}
-            }
-            // Pull from storage instead
-            else if(energySpawn.length>0 && creep.carry.energy == 0)
-            {
-                var result = creep.withdraw(energySpawn[0],RESOURCE_ENERGY,withDrawValue)
-                if( result == ERR_NOT_IN_RANGE ) {
-                    creep.moveTo(energySpawn[0]);
-                }
-                else if (result == OK)
-                {
-                    creep.memory.building=true;
-                }
-            }
-		}
-		else
-		{
-			creep.memory.building=false;
-            creep.moveTo((mySpawn.pos.x+10), mySpawn.pos.y+10);
-		}
-		if(!creep.memory.building && creep.carry.energy == creep.carryCapacity) {
-	        creep.memory.building = true;
-	    }
-        else if(creep.carry.energy == 0)
-        {
-            creep.memory.building = false;
-        }
-
-	    if(creep.memory.building) {
-	        var targets = creep.room.find(FIND_CONSTRUCTION_SITES);
-            if(targets.length || walls.length) {
-    			if(targets.length)
-    			{
-    			    creep.say("Building");
-                    var result = creep.build(targets[0]);
-                    //console.log(result);
-                    if( result == ERR_NOT_IN_RANGE ) {
-                        creep.moveTo(targets[0]);
-                    }
-    			}
-    			else if (walls.length)
-    			{
-    			    creep.say("Reinforcing");
-    			    if(creep.repair(walls[0]) == ERR_NOT_IN_RANGE) {
-                        creep.moveTo(walls[0]);
-                    }
-    			}
-            }
-	    }
-	}
+    }
 };
 
 module.exports = roleBuilder;
+
+// Methods region
+
+// reinforceWalls(creep): Find a wall that is below target strength and reinforce.
+function reinforceWalls(creep)
+{
+    var walls;
+    var wallStr = 500; // default wall strength so nothing is ever at 1
+    var targetWall; // The wall this creep is currently working on
+    /* Fix to make creps work multi-room */
+    var roomSpawn = creep.room.findClosest(FIND_MY_STRUCTURES, {
+        filter: { structureType: STRUCTURE_SPAWN }
+    });
+    if(roomSpawn.memory.wallStr!=null)
+    {
+        wallStr = roomSpawn.memory.wallStr;
+    }
+    // Do we have energy for the creep?
+    if(creep.energy < creep.carry.capacity)
+    {
+        // Go get some!
+        getEnergy(creep);
+    }
+    // If we do have energy, great! Fix walls
+    else
+    {
+        // Does the creep have a target already?
+        if(creep.memory.targetWall!=null)
+        {
+            // Repair the wall to the necessary strength
+            targetWall = Game.getObjectById(creep.memory.targetWall);
+            if(creep.repair(targetWall) == ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(targetWall);
+            }
+            // Remember to unset this target from memory when we hit our target strength
+            if(targetWall.hits >= wallStr)
+            {
+                creep.memory.targetWall=null;
+            }
+        }
+        // Creep doesn't have a target, so find the closest one and keep it in memory
+        else
+        {
+            // Find all walls and store them in memory
+            walls = creep.pos.findClosest(FIND_STRUCTURES, {
+                filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
+            });
+
+            // Set the target
+            creep.memory.targetWall = walls[0].id;
+        }
+    }
+}
+// buildSites(creep): No walls to be built, so build sites if they exist.
+function buildSites(creep)
+{
+    var targetSite;
+    var constructionSites = null; // Assume no sites every tick
+
+    // Do we have energy for the creep?
+    if(creep.energy < creep.carry.capacity)
+    {
+        // Go get some!
+        getEnergy(creep);
+    }
+    // If we do have energy, great! Build sites
+    else
+    {
+        // Does the creep have a target already?
+        if(creep.memory.targetSite!=null)
+        {
+            // Repair the wall to the necessary strength
+            targetSite = Game.getObjectById(creep.memory.targetSite);
+            if(creep.repair(targetSite) == ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(targetSite);
+            }
+            // Remember to unset this target from memory when we hit our target strength
+            if(targetSite.hits >= wallStr)
+            {
+                creep.memory.targetSite=null;
+            }
+        }
+        // Creep doesn't have a target, so find the closest one and keep it in memory
+        else
+        {
+            // Find all walls and store them in memory
+            constructionSites = creep.pos.findClosest(FIND_CONSTRUCTION_SITES)
+
+            // Set the target
+            creep.memory.targetSite = constructionSites[0].id;
+        }
+    }
+}
+// goIdle(creep): Nothing to do so chill at flag or default positions.
+// *TODO* This needs to be unique to a room, so prefixing the name with the room name would be ideal.
+function goIdle(creep)
+{
+    if(Game.flags['idle'])
+    {
+        creep.moveTo(Game.flags['idle']);
+    }
+    else
+    {
+        creep.moveTo((mySpawn.pos.x+10), mySpawn.pos.y+10);
+    }
+}
+// setState(creep): Figure out what state the creep should be in now.
+function setState(creep)
+{
+    var walls = creep.room.findClosest(FIND_STRUCTURES, {
+            filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
+        });
+    var sites = creep.pos.findClosest(FIND_CONSTRUCTION_SITES);
+    // Is action set?
+    if(creep.memory.action==null)
+    {
+        // What should this creep do right now?
+        if(walls.length>0)
+        {
+            creep.memory.action='walls';
+        }
+        else if(sites.length>0)
+        {
+            creep.memory.action='sites';
+        }
+        else
+        {
+            creep.memory.action='idle';
+        }
+    }
+    // Should the action be unset?
+    else
+    {
+        if(creep.memory.action!='idle')
+        {
+            if(walls.length <= 0 && creep.memory.action=='walls')
+            {
+                creep.memory.action=null;
+            }
+            else if(sites.length <= 0 && creep.memory.action=='sites')
+            {
+                creep.memory.action=null;
+            }
+            else
+            {
+                if((walls.length || sites.length) && creep.memory.action=='idle')
+                {
+                    creep.memory.action=null;
+                }
+            }
+        }
+    }
+}
+// getEnergy(creep): Logic for obtaining energy.
+function getEnergy(creep)
+{
+    /*
+        Energy logic: Find the closest energy containing item and use it
+    */
+    var creepEnergy = creep.carry.energy;
+    var creepCapacity = creep.carry.capacity;
+    var withdrawE = creepCapacity - creepEnergy;
+    var energyStorage = creep.pos.findClosest(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_CONTAINER || i.structureType==STRUCTURE_STORAGE)
+            && i.energy > 0)
+    });
+    if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+    {
+        creep.moveTo(energyStorage[0]);
+    }
+}

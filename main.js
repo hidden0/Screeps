@@ -23,17 +23,19 @@ var expanderBody = [CLAIM,MOVE,MOVE,MOVE,MOVE,MOVE];
 
 module.exports.loop = function () {
 	// Added: For multiple room logic
+	// -- Is this necessary per how the game logic works?
 	for (var mySpawn in Game.spawns)
 	{
+		// Can any of this be skipped after an initial run?
 		var liveSpawn = Game.spawns[mySpawn];
 	    // Init checks for loop start
-	    init(liveSpawn);
+	    init(liveSpawn); // Maybe skippable?
 	    // Handle creeps
-	    manageCreeps(liveSpawn);
+	    manageCreeps(liveSpawn); // NEEDED
 	    // Handle memory for spawn
-	    handleSpawnMemory(liveSpawn);
+	    handleSpawnMemory(liveSpawn); // Skippable most of the time
 	    // Tell towers what to do
-	    handleTowers(liveSpawn);
+	    handleTowers(liveSpawn); // NEEDED
 	}
 };
 
@@ -502,13 +504,14 @@ function setMaxByLevel(theSpawn)
 
 // Counts open spaces to mine, and does some math to account for distance to the mining nodes
 // Returns max miners for a room to be efficient at all times
+// -- On small maps with optimum distance, this is still a bit over zealous
 function setMaxMiners(theSpawn)
 {
 	var openSpaces 		= mapSources(theSpawn);
 	var totalDistance	= mapDistance(theSpawn);
 	var distanceMod 	= Math.round(totalDistance/20);
 
-	return openSpaces+distanceMod;
+	return openSpaces+distanceMod-2;
 }
 
 function setMaxBuilders(theSpawn)

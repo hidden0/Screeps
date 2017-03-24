@@ -73,6 +73,7 @@ function handleTowers(theSpawn)
         }
 	}
 }
+
 function handleSpawnMemory(theSpawn)
 {
     theSpawn.memory.optimalMiners=miners.max;
@@ -138,6 +139,7 @@ function trySpawn(name,body,theSpawn)
 		return false;
 	}
 }
+
 function spawnCreep(type,theSpawn)
 {
 	var creepName = type+theSpawn.memory.creepId;
@@ -312,11 +314,11 @@ function manageCreeps(theSpawn)
 			{
 				spawnCreep("miner",theSpawn);
 			}
-			else if(controllers.current==0 && miners.current > 6)
+			else if(controllers.current==0 && miners.current > 2)
 			{
 				spawnCreep("controller",theSpawn);
 			}
-			else if(builders.current==0 && miners.current > 6)
+			else if(builders.current==0 && miners.current > 2)
 			{
 				spawnCreep("builder",theSpawn);
 			}
@@ -327,7 +329,7 @@ function manageCreeps(theSpawn)
 			}
 		}
     }
-	if(controllers.current<controllers.max && miners.current > 6)
+	if(controllers.current<controllers.max && miners.current > 2)
 	{
 	    if(cLevel>=1)
 	    {
@@ -339,7 +341,7 @@ function manageCreeps(theSpawn)
 		    spawnCreep("controller",theSpawn);
 	    }
 	}
-	if(builders.current<builders.max && miners.current > 6)
+	if(builders.current<builders.max && miners.current > 2)
 	{
 		var targets = theSpawn.room.find(FIND_CONSTRUCTION_SITES);
 
@@ -353,7 +355,7 @@ function manageCreeps(theSpawn)
 		    spawnCreep("builder",theSpawn);
 	    }
 	}
-	if(suppliers.current<suppliers.max && miners.current > 6)
+	if(suppliers.current<suppliers.max && miners.current > 2)
 	{
 		//console.log(suppliers.max);
 	    if(cLevel>=1)
@@ -404,6 +406,7 @@ function mapSources(theSpawn)
 	theSpawn.memory.energyScan=false;
 	return totalOpenSpaces+distanceMod;	
 }
+
 function checkOpenSpace(obj)
 {
 	// Return number of tiles in array around x/y that are accessible
@@ -447,6 +450,7 @@ function checkOpenSpace(obj)
 but gameplay is about to reach another tier (i.e. attacking/defending/building/transferring/multiple room control)
 and the impact of this is not known as of yet.
 */
+
 function checkLevel(theSpawn)
 {
 	var theRoom = theSpawn.room;
@@ -522,8 +526,13 @@ function setMaxBuilders(theSpawn)
 	{
 		max = Math.round(targets.length/10);
 	}
+	if(max<1)
+	{
+		max++;
+	}
 	return max;
 }
+
 function setMaxSupply()
 {
     /*

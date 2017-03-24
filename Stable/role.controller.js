@@ -32,9 +32,10 @@ var roleController = {
 function getPoints(creep) {
     // Upgrade the controller
 
-    // Get energy if low
-    if(creep.energy<creep.creepCapacity)
+    // Do we have energy for the creep?
+    if(creep.carry.energy < creep.carryCapacity)
     {
+        // Go get some!
         getEnergy(creep);
     }
 

@@ -46,7 +46,7 @@ function reinforceWalls(creep)
     var wallStr = 500; // default wall strength so nothing is ever at 1
     var targetWall; // The wall this creep is currently working on
     /* Fix to make creps work multi-room */
-    var roomSpawn = creep.room.findClosest(FIND_MY_STRUCTURES, {
+    var roomSpawn = creep.room.find(FIND_MY_STRUCTURES, {
         filter: { structureType: STRUCTURE_SPAWN }
     });
     if(roomSpawn.memory.wallStr!=null)
@@ -81,7 +81,7 @@ function reinforceWalls(creep)
         else
         {
             // Find all walls and store them in memory
-            walls = creep.pos.findClosest(FIND_STRUCTURES, {
+            walls = creep.pos.find(FIND_STRUCTURES, {
                 filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
             });
 
@@ -124,7 +124,7 @@ function buildSites(creep)
         else
         {
             // Find all walls and store them in memory
-            constructionSites = creep.pos.findClosest(FIND_CONSTRUCTION_SITES)
+            constructionSites = creep.pos.find(FIND_CONSTRUCTION_SITES)
 
             // Set the target
             creep.memory.targetSite = constructionSites[0].id;
@@ -147,10 +147,10 @@ function goIdle(creep)
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)
 {
-    var walls = creep.room.findClosest(FIND_STRUCTURES, {
+    var walls = creep.room.find(FIND_STRUCTURES, {
             filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
         });
-    var sites = creep.pos.findClosest(FIND_CONSTRUCTION_SITES);
+    var sites = creep.pos.find(FIND_CONSTRUCTION_SITES);
     // Is action set?
     if(creep.memory.action==null)
     {
@@ -200,7 +200,7 @@ function getEnergy(creep)
     var creepEnergy = creep.carry.energy;
     var creepCapacity = creep.carry.capacity;
     var withdrawE = creepCapacity - creepEnergy;
-    var energyStorage = creep.pos.findClosest(FIND_STRUCTURES, {
+    var energyStorage = creep.pos.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_CONTAINER || i.structureType==STRUCTURE_STORAGE)
             && i.energy > 0)
     });

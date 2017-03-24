@@ -245,7 +245,7 @@ function init(theSpawn)
     theSpawn.memory.initCheck = Game.time;
 
     // Set a wall strength to aim for
-    theSpawn.memory.wallStr = 15000;
+    theSpawn.memory.wallStr = 1;
 
 	miners.current 		= 0;
     controllers.current	= 0;

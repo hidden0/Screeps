@@ -60,6 +60,13 @@ function goIdle(creep)
     {
         creep.moveTo((creep.room.controller.pos.x+10), creep.room.controller.pos.y+10);
     }
+
+    // Check to see if we need to go idle again
+    var roomEnergy = creep.room.energyAvailable;
+    if(roomEnergy > 200) {
+        // Find the closest storage container to the controller that has energy in it
+        creep.memory.action=null;
+    }
 }
 
 // setState(creep): Figure out what state the creep should be in now.
@@ -87,7 +94,7 @@ function getEnergy(creep)
     var creepEnergy = creep.carry.energy;
     var creepCapacity = creep.carry.capacity;
     var withdrawE = creepCapacity - creepEnergy;
-    var energyStorage = theController.pos.findClosest(FIND_STRUCTURES, {
+    var energyStorage = creep.room.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_CONTAINER || i.structureType==STRUCTURE_STORAGE)
             && i.energy > 0)
     });

@@ -37,17 +37,18 @@ var roleBuilder = {
 
 module.exports = roleBuilder;
 
-// role scoped variables
-
-var wallStr = 500; // default wall strength so nothing is ever at 1
-
 // Methods region
-
+var wallStr = 500; // default wall strength so nothing is ever at 1
 // reinforceWalls(creep): Find a wall that is below target strength and reinforce.
 function reinforceWalls(creep)
 {
+
     var walls;
     var targetWall; // The wall this creep is currently working on
+    if(creep.memory.building!=null)
+    {
+        building = creep.memory.building;
+    }
     /* Fix to make creps work multi-room */
     var roomSpawn = Game.spawns['Spawn1']; // <- this gun break ?
     if(roomSpawn.memory.wallStr!=null)
@@ -55,7 +56,7 @@ function reinforceWalls(creep)
         wallStr = roomSpawn.memory.wallStr;
     }
     // Do we have energy for the creep?
-    if(creep.energy < creep.carry.capacity)
+    if(creep.carry.energy < creep.carryCapacity && creep.memory.building==false)
     {
         // Go get some!
         getEnergy(creep);
@@ -63,14 +64,21 @@ function reinforceWalls(creep)
     // If we do have energy, great! Fix walls
     else
     {
+        // Energy obtained, set "creep.memory.building" to true until we can't
+        creep.memory.building=true;
         // Does the creep have a target already?
         if(creep.memory.targetWall!=null)
         {
             // Repair the wall to the necessary strength
             targetWall = Game.getObjectById(creep.memory.targetWall);
-            if(creep.repair(targetWall) == ERR_NOT_IN_RANGE)
+            var output = creep.repair(targetWall);
+            if(output == ERR_NOT_IN_RANGE)
             {
                 creep.moveTo(targetWall);
+            }
+            else if(output == ERR_NOT_ENOUGH_ENERGY)
+            {
+                creep.memory.building=false; // resets need for energy
             }
             // Remember to unset this target from memory when we hit our target strength
             if(targetWall.hits >= wallStr)
@@ -105,9 +113,12 @@ function buildSites(creep)
 {
     var targetSite;
     var constructionSites = null; // Assume no sites every tick
-
+    if(creep.memory.building!=null)
+    {
+        building = creep.memory.building;
+    }
     // Do we have energy for the creep?
-    if(creep.carry.energy < creep.carryCapacity)
+    if(creep.carry.energy < creep.carryCapacity && creep.memory.building==false)
     {
         // Go get some!
         getEnergy(creep);
@@ -115,14 +126,21 @@ function buildSites(creep)
     // If we do have energy, great! Build sites
     else
     {
+        // Energy obtained, set "building" to true until we can't
+        creep.memory.building=true;
         // Does the creep have a target already?
         if(creep.memory.targetSite!=null)
         {
             // Repair the wall to the necessary strength
             targetSite = Game.getObjectById(creep.memory.targetSite);
-            if(creep.build(targetSite) == ERR_NOT_IN_RANGE)
+            var output = creep.build(targetSite);
+            if(output == ERR_NOT_IN_RANGE)
             {
                 creep.moveTo(targetSite);
+            }
+            else if(output == ERR_NOT_ENOUGH_ENERGY)
+            {
+                creep.memory.building=false; // resets need for energy
             }
             // Remember to unset this target from memory when we hit our target strength
             if(targetSite.hits >= wallStr)

@@ -113,6 +113,7 @@ function buildSites(creep)
 {
     var targetSite;
     var constructionSites = null; // Assume no sites every tick
+    var building = false;
     if(creep.memory.building!=null)
     {
         building = creep.memory.building;
@@ -142,20 +143,29 @@ function buildSites(creep)
             {
                 creep.memory.building=false; // resets need for energy
             }
-            // Remember to unset this target from memory when we hit our target strength
-            if(targetSite.hits >= wallStr)
+            else if (output == ERR_INVALID_TARGET) 
             {
-                creep.memory.targetSite=null;
+                creep.memory.targetSite=null
+                creep.memory.building=false;
             }
+            
         }
         // Creep doesn't have a target, so find the closest one and keep it in memory
         else
         {
             // Find all walls and store them in memory
             constructionSites = creep.room.find(FIND_CONSTRUCTION_SITES)
-
             // Set the target
-            creep.memory.targetSite = constructionSites[0].id;
+            if(constructionSites.length)
+            {
+                creep.memory.targetSite = constructionSites[0].id;
+            }
+            else
+            {
+                creep.memory.targetSite=null
+                creep.memory.building=false;
+                creep.memory.action=null;
+            }
         }
     }
 }
@@ -169,7 +179,8 @@ function goIdle(creep)
     }
     else
     {
-        creep.moveTo((mySpawn.pos.x+10), mySpawn.pos.y+10);
+        creep.moveTo((Game.spawns['Spawn1'].pos.x+10), Game.spawns['Spawn1'].pos.y+10);
+        setState(creep);
     }
 }
 // setState(creep): Figure out what state the creep should be in now.
@@ -180,7 +191,7 @@ function setState(creep)
         });
     var sites = creep.room.find(FIND_CONSTRUCTION_SITES);
     // Is action set?
-    if(creep.memory.action==null)
+    if(creep.memory.action==null || creep.memory.action=='idle')
     {
         // What should this creep do right now?
         if(walls.length>0)

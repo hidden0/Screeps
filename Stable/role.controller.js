@@ -33,7 +33,7 @@ function getPoints(creep) {
     // Upgrade the controller
 
     // Do we have energy for the creep?
-    if(creep.carry.energy < creep.carryCapacity)
+    if(creep.carry.energy < creep.carryCapacity && creep.memory.points==false)
     {
         // Go get some!
         getEnergy(creep);
@@ -42,9 +42,15 @@ function getPoints(creep) {
     // Else, upgrade the controller
     else
     {
-        if(creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE)
+        creep.memory.points=true;
+        var output = creep.upgradeController(creep.room.controller);
+        if(output == ERR_NOT_IN_RANGE)
         {
             creep.moveTo(creep.room.controller);
+        }
+        else if(output == ERR_NOT_ENOUGH_ENERGY)
+        {
+            creep.memory.points=false; // resets need for energy
         }
     }
 }
@@ -94,16 +100,28 @@ function getEnergy(creep)
     var creepEnergy = creep.carry.energy;
     var creepCapacity = creep.carry.capacity;
     var withdrawE = creepCapacity - creepEnergy;
+    var container = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
+            && (i.store > 0))
+    });
     var energyStorage = creep.room.find(FIND_STRUCTURES, {
-        filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_CONTAINER || i.structureType==STRUCTURE_STORAGE)
-            && i.energy > 0)
+        filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_STORAGE)
+            && (i.energy > 0))
     });
     // Now that energy storage is identified, loop through the array to find the closest energy storage
-
-
-    if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+    if(container.length)
     {
-        creep.moveTo(energyStorage[0]);
+        if(creep.withdraw(container[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(container[0]);
+        }
+    }
+    else
+    {
+        if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(energyStorage[0]);
+        }
     }
 }
 
@@ -112,49 +130,43 @@ function getEnergy(creep)
 function mapDistance(creep, target)
 {
     var distanceCounter = 0;
-    var sources = spawnPoint.room.find(FIND_SOURCES);
-    var spawn_xPos = spawnPoint.pos.x;
-    var spawn_yPos = spawnPoint.pos.y;
+    var spawn_xPos = creep.pos.x;
+    var spawn_yPos = creep.pos.y;
     var i=0;
-    while (i<sources.length)
+    // Find the distance via pythagorean theorem to this source
+
+    var source_xPos = target.pos.x;
+    var source_yPos = target.pos.y;
+    var x_1 = 0;
+    var x_2 = 0;
+    var y_1 = 0;
+    var y_2 = 0;
+    if(spawn_xPos > source_xPos)
     {
-        // Find the distance via pythagorean theorem to this source
-
-        var source_xPos = sources[i].pos.x;
-        var source_yPos = sources[i].pos.y;
-        var x_1 = 0;
-        var x_2 = 0;
-        var y_1 = 0;
-        var y_2 = 0;
-        if(spawn_xPos > source_xPos)
-        {
-            x_2 = spawn_xPos;
-            x_1 = source_xPos;
-        }
-        else
-        {
-            x_1 = spawn_xPos;
-            x_2 = source_xPos;
-        }
-        if(spawn_yPos > source_yPos)
-        {
-            y_2 = spawn_yPos;
-            y_1 = source_yPos;
-        }
-        else
-        {
-            y_1 = spawn_yPos;
-            y_2 = source_yPos;
-        }
-        var xCalc = ((x_2-x_1)*(x_2-x_1));
-        var yCalc = ((y_2-y_1)*(y_2-y_1));
-
-        var distance = Math.sqrt(xCalc+yCalc);
-        distanceCounter+=distance;  
-        i++;    
+        x_2 = spawn_xPos;
+        x_1 = source_xPos;
     }
+    else
+    {
+        x_1 = spawn_xPos;
+        x_2 = source_xPos;
+    }
+    if(spawn_yPos > source_yPos)
+    {
+        y_2 = spawn_yPos;
+        y_1 = source_yPos;
+    }
+    else
+    {
+        y_1 = spawn_yPos;
+        y_2 = source_yPos;
+    }
+    var xCalc = ((x_2-x_1)*(x_2-x_1));
+    var yCalc = ((y_2-y_1)*(y_2-y_1));
 
-    return distanceCounter;
+    var distance = Math.sqrt(xCalc+yCalc);
+
+    return distance;
 }
 
 module.exports = roleController;

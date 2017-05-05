@@ -336,21 +336,19 @@ function manageCreeps(theSpawn)
 	        // Build a level 2 builder/upgrader
 	        spawnCreep("controller2",theSpawn);
 	    }
-	    else if (cLevel==0)
+	    else
 	    {
 		    spawnCreep("controller",theSpawn);
 	    }
 	}
 	if(builders.current<builders.max && miners.current > 2)
 	{
-		var targets = theSpawn.room.find(FIND_CONSTRUCTION_SITES);
-
-	    if(cLevel>=1)
+	    if(cLevel>=2)
 	    {
 	        // Build a level 2 builder/upgrader
 	        spawnCreep("builder2",theSpawn);
 	    }
-	    else if (cLevel==0 && targets.length)
+	    else if (cLevel<=1)
 	    {
 		    spawnCreep("builder",theSpawn);
 	    }
@@ -462,15 +460,15 @@ function checkLevel(theSpawn)
 				return (structure.structureType == STRUCTURE_EXTENSION)
 			}
 	});
-    if(targets != null && totalEnergy>400)
+    if(targets != null && totalEnergy>350)
     {
         cLevel = 1;
 
-        if(totalEnergy > 1000 && totalEnergy < 2000)
+        if(totalEnergy > 600 && totalEnergy < 1500)
         {
         	cLevel = 2;
         }
-        else if (totalEnergy > 2000 && totalEnergy < 3000)
+        else if (totalEnergy > 1500 && totalEnergy < 3000)
         {
         	if(targets.length>8)
         	{
@@ -526,9 +524,13 @@ function setMaxBuilders(theSpawn)
 	{
 		max = Math.round(targets.length/10);
 	}
-	if(max<1)
+	if(max<=1 && theSpawn.memory.level == 0) // level 0
 	{
-		max++;
+		max=2; // default number of builders - even if no sites
+	}
+	else if(max<=2 && theSpawn.memory.level == 1)
+	{
+		max = 4;
 	}
 	return max;
 }

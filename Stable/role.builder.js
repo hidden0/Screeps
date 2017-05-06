@@ -113,7 +113,7 @@ function buildSites(creep)
 {
     var targetSite;
     var constructionSites = null; // Assume no sites every tick
-    var building = false;
+    var building = null;
     if(creep.memory.building!=null)
     {
         building = creep.memory.building;
@@ -180,8 +180,8 @@ function goIdle(creep)
     else
     {
         creep.moveTo((Game.spawns['Spawn1'].pos.x+10), Game.spawns['Spawn1'].pos.y+10);
-        setState(creep);
     }
+    setState(creep);
 }
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)

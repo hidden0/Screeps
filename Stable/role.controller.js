@@ -102,18 +102,38 @@ function getEnergy(creep)
     var withdrawE = creepCapacity - creepEnergy;
     var container = creep.room.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
-            && (i.store > 0))
+            && (i.store['energy'] > 0))
     });
     var energyStorage = creep.room.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_STORAGE)
             && (i.energy > 0))
     });
     // Now that energy storage is identified, loop through the array to find the closest energy storage
+    var i=0;
+    var winner_index=0;
+    var lowest=null;
+    var dist=0;
     if(container.length)
     {
-        if(creep.withdraw(container[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        while(i<container.length)
         {
-            creep.moveTo(container[0]);
+            dist = mapDistance(creep,container[i]);
+            console.log("Container["+i+"] distance: " + dist);
+            if(lowest==null)
+            {
+                lowest=dist;
+            }
+            else if(dist<lowest)
+            {
+                lowest=dist;
+                winner_index=i;
+            }
+            i++;
+        }
+        console.log("Container["+winner_index+"] chosen winner: " + lowest);
+        if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(container[winner_index]);
         }
     }
     else

@@ -298,6 +298,8 @@ function manageCreeps(theSpawn)
 	//console.log("Miners - Cur:" + miners.current + " - Max:" + miners.max);
 	//console.log("Builders - Cur:" + builders.current + " - Max:" + builders.max);
 	//console.log("Controllers - Cur:" + controllers.current + " - Max:" + controllers.max);
+
+	var economy = theSpawn.memory.optimalMiners/2; // make sure we always have at least half of optimal miners before spawning other things in logic below
     if(miners.current<miners.max)
     {
 		// spawn a normal miner if we have to
@@ -314,11 +316,11 @@ function manageCreeps(theSpawn)
 			{
 				spawnCreep("miner",theSpawn);
 			}
-			else if(controllers.current==0 && miners.current > 2)
+			else if(controllers.current==0 && miners.current > economy)
 			{
 				spawnCreep("controller",theSpawn);
 			}
-			else if(builders.current==0 && miners.current > 2)
+			else if(builders.current==0 && miners.current > economy)
 			{
 				spawnCreep("builder",theSpawn);
 			}
@@ -329,7 +331,7 @@ function manageCreeps(theSpawn)
 			}
 		}
     }
-	if(controllers.current<controllers.max && miners.current > 2)
+	if(controllers.current<controllers.max && miners.current > economy)
 	{
 	    if(cLevel>=1)
 	    {
@@ -341,7 +343,7 @@ function manageCreeps(theSpawn)
 		    spawnCreep("controller",theSpawn);
 	    }
 	}
-	if(builders.current<builders.max && miners.current > 2)
+	if(builders.current<builders.max && miners.current > economy)
 	{
 	    if(cLevel>=2)
 	    {
@@ -353,7 +355,7 @@ function manageCreeps(theSpawn)
 		    spawnCreep("builder",theSpawn);
 	    }
 	}
-	if(suppliers.current<suppliers.max && miners.current > 2)
+	if(suppliers.current<suppliers.max && miners.current > economy)
 	{
 		//console.log(suppliers.max);
 	    if(cLevel>=1)

@@ -34,14 +34,20 @@ no need to switch to a new source
 
 // Creep Roles
 var localMiner = require("role.localMiner");
+var upgrader = require("role.upgrader");
+var builder = require("role.builder");
 
 // Globals
 var mainSpawn = Game.spawns['home']; // always call room 1 home for this script to work
 // - Maximum creep counts for automation
 var localMiners;
+var upgraders;
+var builders;
 
 // - Creep body types
 var localMinerBody = [WORK, CARRY, MOVE, MOVE];
+var localUpgraderBody = [WORK, WORK, CARRY, CARRY, MOVE];
+var builderBody = [WORK, CARRY, CARRY, MOVE];
 
 // Primary game loop
 module.exports.loop = function () {
@@ -78,6 +84,8 @@ function populationManager(spawnPoint)
 {
 	// Zero out counters for each creep type
     localMiners 		= {current:0, max:0};
+    upgraders 			= {current:0, max:0};
+    builders 			= {current:0, max:0};
 
     // Set maximums
     if(spawnPoint.memory.localMinersMax!=null)
@@ -85,14 +93,46 @@ function populationManager(spawnPoint)
     	localMiners.max=spawnPoint.memory.localMinersMax;
     }
 
+    switch(spawnPoint.room.controller.level)
+    {
+    	case 1:
+    		upgraders.max=2;
+    		builders.max=3;
+    		break;
+    	case 2:
+    		upgraders.max=3;
+    		builders.max=3;
+    		break;
+    	case 3:
+    		upgraders.max=2;
+    		builders.max=3;
+    		//upgraders2.max=3;
+    		break;
+    	default:
+    		upgraders.max=2;
+    		builders.max=3;
+    		break;
+    }
+
 	// localMiner management
 	localMiners.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localMiner')).length;
+	upgraders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('upgrader')).length;
 
 	// Spawn needed creeps with if/else-if priortization
 	if(localMiners.current<localMiners.max)
 	{
 		// try to spawn a localMiner
 		spawnCreep("localMiner",spawnPoint);
+	}
+	else if(upgraders.current<upgraders.max)
+	{
+		// try to spawn an upgrader
+		spawnCreep("upgrader",spawnPoint);
+	}
+	else if(builders.current<builders.max)
+	{
+		// try to spawn an upgrader
+		spawnCreep("builder",spawnPoint);
 	}
 }
 
@@ -102,8 +142,6 @@ function manageCreeps()
 	for (var name in Game.creeps)
     {
         var creep = Game.creeps[name];
-        // Clean up dead
-        cleanDeadCreeps();
 
         // Process all creep roles
         switch(creep.memory.role)
@@ -111,8 +149,16 @@ function manageCreeps()
         	case 'localMiner':
         		localMiner.run(creep);
         		break;
+        	case 'upgrader':
+        		upgrader.run(creep);
+        		break;
+        	case 'builder':
+        		builder.run(creep);
+        		break;
         }
     }
+    // Clean up dead
+    cleanDeadCreeps();
 }
 
 // Keep game memory in check over time
@@ -161,23 +207,22 @@ function checkOpenSpace(xpos,ypos,roomName)
 	}
 	return accessible;
 }
-
+// This or trySpawn needs further optimization
 function spawnCreep(type,spawnPoint)
 {
-	if(spawnPoint.memory.creepCount==null)
-    {
-    	spawnPoint.memory.creepCount=0;
-    }
-    else
-    {
-    	spawnPoint.memory.creepCount+=1;
-    }
-	var creepName = type+spawnPoint.memory.creepCount;
 	var newCreep;
-	
+	if(spawnPoint.memory.creepCount==null)
+		{
+			spawnPoint.memory.creepCount=0;
+		}
+		else
+	    {
+	    	spawnPoint.memory.creepCount+=1;
+	    }
 	switch(type)
 	{
 		case "localMiner":
+			var creepName = type+spawnPoint.memory.creepCount;
 			if(trySpawn(creepName,localMinerBody,spawnPoint))
 			{
 				newCreep = Game.creeps[creepName];
@@ -187,9 +232,25 @@ function spawnCreep(type,spawnPoint)
 					newCreep.memory.source = setLocalMinerSource(spawnPoint);
 				}
 			}
+		case "upgrader":
+			var creepName = type+spawnPoint.memory.creepCount;
+			if(trySpawn(creepName,localUpgraderBody,spawnPoint))
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="upgrader";
+			}
+			break;
+		case "builder":
+			var creepName = type+spawnPoint.memory.creepCount;
+			if(trySpawn(creepName,builderBody,spawnPoint))
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="builder";
+			}
 			break;
 	}
 }
+// This or spawnCreep needs further optimization
 function trySpawn(name,body,spawnPoint)
 {
 	var result = spawnPoint.canCreateCreep(body, name);
@@ -210,6 +271,7 @@ function trySpawn(name,body,spawnPoint)
 
 // Compares open space around a source, number of miners already on the source, and finds the next open spot
 // Accounts for open spaces + 1
+// This function has been vetted as successful and well optimized!
 function setLocalMinerSource(spawnPoint)
 {
 	var sources = spawnPoint.room.find(FIND_SOURCES);
@@ -223,7 +285,6 @@ function setLocalMinerSource(spawnPoint)
 	{
 		// Auto add +1 to a source, always have someone in transit
 		source_spaces[i] = checkOpenSpace(sources[i].pos.x, sources[i].pos.y,spawnPoint.room.name) + 1; 
-		console.log("Source " + sources[i].id + " miners maximum: " + source_spaces[i]);
 		open_spaces += source_spaces[i];
 	}
 
@@ -238,7 +299,6 @@ function setLocalMinerSource(spawnPoint)
 			{
 				// Each hit reduces source_spaces[x]
 				source_spaces[x]--;
-				console.log("Source " + sources[x].id + " found miner. Miners still needed: " + source_spaces[x]);
 			}
 		}
 		if(source_spaces[x]>0)

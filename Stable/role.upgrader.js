@@ -56,22 +56,27 @@ function getPoints(creep) {
 }
 // goIdle(creep): Nothing to do so chill at flag or default positions.
 // *TODO* This needs to be unique to a room, so prefixing the name with the room name would be ideal.
-function goIdle(creep)
+function goIdle(myCreep)
 {
-    if(Game.flags['idle'])
+    // if a flag is already set, don't loop for it
+    if(myCreep.memory.idleFlag!=null)
     {
-        creep.moveTo(Game.flags['idle']);
+        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag])==ERR_INVALID_TARGET)
+        {
+            myCreep.memory.idleFlag=null;
+        }
     }
+    // Otherwise, see if a flag is in the room
     else
     {
-        creep.moveTo((creep.room.controller.pos.x+10), creep.room.controller.pos.y+10);
-    }
-
-    // Check to see if we need to go idle again
-    var roomEnergy = creep.room.energyAvailable;
-    if(roomEnergy > 200) {
-        // Find the closest storage container to the controller that has energy in it
-        creep.memory.action=null;
+        for (var flagName in Game.flags)
+        {
+            if(flagName.includes("upgrader"))
+            {
+                myCreep.memory.idleFlag=flagName;
+                break;
+            }
+        }
     }
 }
 

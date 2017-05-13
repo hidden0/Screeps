@@ -117,11 +117,13 @@ function populationManager(spawnPoint)
 	// localMiner management
 	localMiners.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localMiner')).length;
 	upgraders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('upgrader')).length;
+	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('builder')).length;
 
 	// Spawn needed creeps with if/else-if priortization
 	if(localMiners.current<localMiners.max)
 	{
 		// try to spawn a localMiner
+		
 		spawnCreep("localMiner",spawnPoint);
 	}
 	else if(upgraders.current<upgraders.max)

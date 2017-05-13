@@ -193,6 +193,8 @@ function goIdle(myCreep)
             }
         }
     }
+    // Should I leave idle?
+    setState(myCreep);
 }
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)

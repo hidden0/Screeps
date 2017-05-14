@@ -36,28 +36,40 @@ no need to switch to a new source
 var localMiner = require("role.localMiner");
 var upgrader = require("role.upgrader");
 var builder = require("role.builder");
+var expander = require("role.expander");
+var pilgrim = require("role.pilgrim");
 
 // Globals
-var mainSpawn = Game.spawns['home']; // always call room 1 home for this script to work
+
 // - Maximum creep counts for automation
 var localMiners;
 var upgraders;
 var builders;
+var expanders;
+var pilgrims;
 
 // - Creep body types
-var localMinerBody = [WORK, CARRY, MOVE, MOVE];
+var localMinerBody = [WORK, WORK, CARRY, MOVE, MOVE];
+var simpleMinerBody = [WORK, CARRY, MOVE, MOVE];
 var localUpgraderBody = [WORK, WORK, CARRY, CARRY, MOVE];
 var builderBody = [WORK, CARRY, CARRY, MOVE];
+var expanderBody = [CLAIM, MOVE, MOVE];
+var pilgrimBody = [MOVE, MOVE, MOVE, CARRY, CARRY, WORK, WORK];
 
 // Primary game loop
 module.exports.loop = function () {
-	// First time init, only runs *once*
-	if(mainSpawn.memory.init==null || mainSpawn.memory.init==false)
-	{
-		init(mainSpawn);
-	}
-	// Population management - do we need to spawn a creep?
-	populationManager(mainSpawn);
+    // most of this is spawn based - do this per spawn
+    for (var aSpawn in Game.spawns)
+    {
+        var theSpawn = Game.spawns[aSpawn];
+    	// First time init, only runs *once*
+    	if(theSpawn.memory.init==null || theSpawn.memory.init==false)
+    	{
+    		init(theSpawn);
+    	}
+    	// Population management - do we need to spawn a creep?
+    	populationManager(theSpawn);
+    }
 	// Handle all creeps currently alive
 	manageCreeps();
 };
@@ -86,6 +98,8 @@ function populationManager(spawnPoint)
     localMiners 		= {current:0, max:0};
     upgraders 			= {current:0, max:0};
     builders 			= {current:0, max:0};
+    expanders 			= {current:0, max:0};
+    pilgrims 			= {current:0, max:0};
 
     // Set maximums
     if(spawnPoint.memory.localMinersMax!=null)
@@ -113,11 +127,64 @@ function populationManager(spawnPoint)
     		builders.max=3;
     		break;
     }
+    // Claim management
+    var claimFlag = null;
+    if(spawnPoint.name=='home')
+    {
+	    for (var flagName in Game.flags)
+	    {
+	        if(flagName.includes("claim"))
+	        {
+	            claimFlag=flagName;
+	            spawnPoint.memory.targetRoom=Game.flags[claimFlag].pos.roomName;
+	            break;
+	        }
+	    }
 
+	    if(spawnPoint.memory.targetRoom!=null)
+	    {
+	    	if(Game.rooms[spawnPoint.memory.targetRoom]!=null)
+		    	{
+		        if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner.username!="hidden0")
+		        {
+		            expanders.max=1;
+		        }
+		        else
+		        {
+		            expanders.max=0;
+		        }
+		        
+		        var spawnsInRoom = Game.rooms[spawnPoint.memory.targetRoom].find(FIND_STRUCTURES, {
+		                filter: (i) => (i.structureType==STRUCTURE_SPAWN)
+		            });
+		        if(spawnsInRoom.length>0)
+		        {
+		            pilgrims.max=0;
+		            spawnPoint.memory.targetRoom=null;
+		            Game.flags[claimFlag].remove();
+		        }
+		        else
+		        {
+		            pilgrims.max=2;
+		        }
+	    	}
+	    	if(claimFlag!=null)
+	    	{
+	    		expanders.max=1;
+	    	}
+	    }
+	    else
+	    {
+	        expanders.max=0;
+	        pilgrims.max=0;
+	    }
+	}	
 	// localMiner management
-	localMiners.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localMiner')).length;
-	upgraders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('upgrader')).length;
-	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('builder')).length;
+	localMiners.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localMiner') && creep.room.name==spawnPoint.room.name).length;
+	upgraders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('upgrader') && creep.room.name==spawnPoint.room.name).length;
+	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('builder') && creep.room.name==spawnPoint.room.name).length;
+	expanders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('expander') && creep.room.name==spawnPoint.room.name).length;
+	pilgrims.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('pilgrim') && creep.room.name==spawnPoint.room.name).length;
 
 	// Spawn needed creeps with if/else-if priortization
 	if(localMiners.current<localMiners.max)
@@ -135,6 +202,16 @@ function populationManager(spawnPoint)
 	{
 		// try to spawn an upgrader
 		spawnCreep("builder",spawnPoint);
+	}
+	else if(expanders.current<expanders.max && spawnPoint.name=='home')
+	{
+		// try to spawn an upgrader
+		spawnCreep("expander",spawnPoint);
+	}
+	else if(pilgrims.current<pilgrims.max && spawnPoint.name=='home')
+	{
+		// try to spawn an upgrader
+		spawnCreep("pilgrim",spawnPoint);
 	}
 }
 
@@ -157,6 +234,12 @@ function manageCreeps()
         	case 'builder':
         		builder.run(creep);
         		break;
+        	case 'expander':
+        	    expander.run(creep);
+        	    break;
+        	case 'pilgrim':
+        	    pilgrim.run(creep);
+        	    break;
         }
     }
     // Clean up dead
@@ -234,6 +317,25 @@ function spawnCreep(type,spawnPoint)
 					newCreep.memory.source = setLocalMinerSource(spawnPoint);
 				}
 			}
+			else
+			{
+				// Are there any extensions?
+				var extCount = spawnPoint.room.find(FIND_STRUCTURES, {
+                filter: (i) => (i.structureType==STRUCTURE_EXTENSION)
+            });
+				if(extCount.length<2)
+				{
+				    if(trySpawn(creepName,simpleMinerBody,spawnPoint))
+	    			{
+	    				newCreep = Game.creeps[creepName];
+	    				newCreep.memory.role="localMiner";
+	    				if(newCreep.memory.source==null)
+	    				{
+	    					newCreep.memory.source = setLocalMinerSource(spawnPoint);
+	    				}
+	    			}
+    			}
+			}
 		case "upgrader":
 			var creepName = type+spawnPoint.memory.creepCount;
 			if(trySpawn(creepName,localUpgraderBody,spawnPoint))
@@ -248,6 +350,21 @@ function spawnCreep(type,spawnPoint)
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="builder";
+			}
+		case "expander":
+			var creepName = type+spawnPoint.memory.creepCount;
+			if(trySpawn(creepName,expanderBody,spawnPoint))
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="expander";
+			}
+			break;
+		case "pilgrim":
+			var creepName = type+spawnPoint.memory.creepCount;
+			if(trySpawn(creepName,pilgrimBody,spawnPoint))
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="pilgrim";
 			}
 			break;
 	}
@@ -281,7 +398,7 @@ function setLocalMinerSource(spawnPoint)
 	var creeps_mining = 0;
 	var open_spaces = 0;
 	var sourceId = null;
-	console.log("Sources: " + sources.length);
+
 
 	for(var i = 0; i<sources.length; i++)
 	{

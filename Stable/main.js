@@ -38,6 +38,7 @@ var upgrader = require("role.upgrader");
 var builder = require("role.builder");
 var expander = require("role.expander");
 var pilgrim = require("role.pilgrim");
+var localTruck = require("role.localTruck");
 
 // Globals
 
@@ -47,6 +48,7 @@ var upgraders;
 var builders;
 var expanders;
 var pilgrims;
+var localTrucks;
 
 // - Creep body types
 var localMinerBody = [WORK, WORK, CARRY, MOVE, MOVE];
@@ -55,6 +57,7 @@ var localUpgraderBody = [WORK, WORK, CARRY, MOVE];
 var builderBody = [WORK, CARRY, CARRY, MOVE];
 var expanderBody = [CLAIM, MOVE, MOVE];
 var pilgrimBody = [MOVE, MOVE, MOVE, CARRY, CARRY, WORK, WORK];
+var localTruckBody = [MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 
 // Primary game loop
 module.exports.loop = function () {
@@ -136,6 +139,7 @@ function populationManager(spawnPoint)
     builders 			= {current:0, max:0};
     expanders 			= {current:0, max:0};
     pilgrims 			= {current:0, max:0};
+    localTrucks			= {current:0, max:0};
 
     // Set maximums
     if(spawnPoint.memory.localMinersMax!=null)
@@ -163,7 +167,18 @@ function populationManager(spawnPoint)
     		builders.max=3;
     		break;
     }
-
+    // truck management
+    // if there are towers and containers, it's time to have a truck
+    var towers = spawnPoint.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_TOWER))
+    });
+    var containers = spawnPoint.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_CONTAINER))
+    });
+    if(towers.length>0 && containers.length>0)
+    {
+    	localTrucks.max=1;
+    }
     // Claim management
     // #region - claims
 
@@ -234,6 +249,7 @@ function populationManager(spawnPoint)
 	localMiners.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localMiner') && creep.room.name==spawnPoint.room.name).length;
 	upgraders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('upgrader') && creep.room.name==spawnPoint.room.name).length;
 	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('builder') && creep.room.name==spawnPoint.room.name).length;
+	localTrucks.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localTruck') && creep.room.name==spawnPoint.room.name).length;
 	expanders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('expander')).length;
 	pilgrims.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('pilgrim')).length;
 
@@ -275,6 +291,11 @@ function populationManager(spawnPoint)
 		// try to spawn an upgrader
 		spawnCreep("builder",spawnPoint);
 	}
+	else if(localTrucks.current<localTrucks.max)
+	{
+		// try to spawn an upgrader
+		spawnCreep("localTruck",spawnPoint);
+	}
 	else if(expanders.current<expanders.max && spawnPoint.name=='home')
 	{
 		// try to spawn an upgrader
@@ -311,6 +332,9 @@ function manageCreeps()
         	    break;
         	case 'pilgrim':
         	    pilgrim.run(creep);
+        	    break;
+        	case 'localTruck':
+        	    localTruck.run(creep);
         	    break;
         }
     }
@@ -424,6 +448,15 @@ function spawnCreep(type,spawnPoint)
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="builder";
 			}
+			break;
+		case "localTruck":
+			var creepName = type+spawnPoint.memory.creepCount;
+			if(trySpawn(creepName,localTruckBody,spawnPoint))
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="localTruck";
+			}
+			break;
 		case "expander":
 			var creepName = type+spawnPoint.memory.creepCount;
 			if(trySpawn(creepName,expanderBody,spawnPoint))

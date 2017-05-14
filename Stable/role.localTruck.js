@@ -1,84 +1,62 @@
 /***
 Miners just mine and take energy to storage/containers.
-Template still
+The truck will move energy from containers/spawn (if spawn is not in reserve mode) to other structures with this priority:
+1) Towers
+2) Storage
+
+If there is no energy to move or a need to move energy, perhaps salvage energy on the ground?
 ***/
 
 var localTruckCreep = {
 	/** @param {Creep} creep object **/
-	/** goal: mine source **/
 	run: function(creep) {
-		// Mine if assigned a source
-		if(creep.memory.source!=null && (creep.memory.full==false || creep.memory.full==null))
-		{
-			if(creep.harvest(Game.getObjectById(creep.memory.source)) == ERR_NOT_IN_RANGE) {
-	    			creep.moveTo(Game.getObjectById(creep.memory.source));
-    		}
-    		if(creep.carry.energy==creep.carryCapacity)
-    		{
-    			creep.memory.full=true;
-    		}
-		}
-		// Energy might be full, go dump it
-		else if (creep.memory.full)
-		{
-			var targets = creep.room.find(FIND_STRUCTURES, {
-                    filter: (structure) => {
-                        return (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN || structure.structureType == STRUCTURE_CONTAINER) &&
-                            structure.energy < (structure.energyCapacity);
+        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!-null)
+        {
+            if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
+            {
+                // Move energy from containers first, second from spawn to towers then to storage
+                if(creep.memory.full==null || creep.memory.full==false)
+                {
+                    // Creep has no energy, go get some
+                    getEnergy(creep);
+                }
+                else
+                {
+
+                    // Take energy to towers that need it
+                    var towers = creep.room.find(FIND_STRUCTURES, {
+                        filter: (i) => ((i.structureType==STRUCTURE_TOWER)
+                            && (i.energy < i.energyCapacity))
+                    });
+                    var storage = creep.room.find(FIND_STRUCTURES, {
+                        filter: (i) => ((i.structureType==STRUCTURE_STORAGE)
+                            && (i.store < i.storeCapacity))
+                    });
+                    if(towers.length>0)
+                    {
+                        if(creep.transfer(towers[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                            creep.moveTo(towers[0]);
+                        }
                     }
-            });
-            var containersWithRoom = creep.room.find(FIND_STRUCTURES, {
-                filter: (i) => i.structureType == STRUCTURE_CONTAINER && 
-                               i.store[RESOURCE_ENERGY] < i.storeCapacity
-            });
-            var storageCont = creep.room.find(FIND_STRUCTURES, {
-                filter: (i) => i.structureType == STRUCTURE_STORAGE && 
-                               i.store[RESOURCE_ENERGY] < i.storeCapacity
-            });
-            if(targets.length > 0) {
-                //console.log("Moving to spawn to store energy.");
-                if(creep.transfer(targets[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(targets[0]);
+                    // Otherwise storage structure
+                    else
+                    {
+                        if(creep.transfer(storage[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                            creep.moveTo(storage[0]);
+                        }
+                    }
+                    if(creep.carry.energy==0)
+                    {
+                        creep.memory.full=false;
+                    }
                 }
-            }
-            // Extensions/spawns are full, find containers
-            else if(containersWithRoom.length>0)
-            {
-                if(creep.transfer(containersWithRoom[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(containersWithRoom[0]);
-                }
-            }
-            else if(storageCont.length>0)
-            {
-                if(creep.transfer(storageCont[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(storageCont[0]);
-                }
-            }
+	        }
             else
             {
-            	// At least we could dump some of it? Go back to mining...
-            	if(creep.carry.energy<creep.carryCapacity)
-            	{
-            		creep.memory.full=false;
-            	}
-            	else
-            	{
-            		// We'd only be here if energy is 100% full and there is just no where to dump it
-            		goIdle(creep);
-            	}
+                goIdle(creep);
             }
-            // Did we manage to empty energy?
-            if(creep.carry.energy==0)
-            {
-            	creep.memory.full=false;
-            }
-		}
-		// Otherwise find a flag containing "miner"
-		else
-		{
-			goIdle(creep);
-		}
-	}
+        }
+    }
 };
 module.exports = localTruckCreep;
 
@@ -97,11 +75,116 @@ function goIdle(myCreep)
 	{
 		for (var flagName in Game.flags)
 		{
-			if(flagName.includes("miner"))
+			if(flagName.includes("truck") && Game.flags[flagName].pos.roomName==myCreep.room.name)
 			{
 				myCreep.memory.idleFlag=flagName;
 				break;
 			}
 		}
 	}
+}
+
+
+// getEnergy(creep): Logic for obtaining energy.
+// controller note: this is based on controller position, not creep.
+function getEnergy(creep)
+{
+    /*
+        Energy logic: Find the closest energy containing item and use it
+    */
+    var theController = creep.room.controller;
+    var creepEnergy = creep.carry.energy;
+    var creepCapacity = creep.carry.capacity;
+    var withdrawE = creepCapacity - creepEnergy;
+    var container = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
+            && (i.store['energy'] > 0))
+    });
+    var energyStorage = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_SPAWN)
+            && (i.energy > 0))
+    });
+    // Now that energy storage is identified, loop through the array to find the closest energy storage
+    var i=0;
+    var winner_index=0;
+    var lowest=null;
+    var dist=0;
+    if(container.length)
+    {
+        while(i<container.length)
+        {
+            dist = mapDistance(creep,container[i]);
+            //console.log("Container["+i+"] distance: " + dist);
+            if(lowest==null)
+            {
+                lowest=dist;
+            }
+            else if(dist<lowest)
+            {
+                lowest=dist;
+                winner_index=i;
+            }
+            i++;
+        }
+        //console.log("Container["+winner_index+"] chosen winner: " + lowest);
+        if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(container[winner_index]);
+        }
+    }
+    else
+    {
+        if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(energyStorage[0]);
+        }
+    }
+    if(creep.carry.energy==creep.carry.capacity)
+    {
+        creep.memory.full=true;
+    }
+}
+
+// Find a path to a given target
+// Return the number of tiles you would have to move from the creeps current position to reach given target
+function mapDistance(creep, target)
+{
+    var distanceCounter = 0;
+    var spawn_xPos = creep.pos.x;
+    var spawn_yPos = creep.pos.y;
+    var i=0;
+    // Find the distance via pythagorean theorem to this source
+
+    var source_xPos = target.pos.x;
+    var source_yPos = target.pos.y;
+    var x_1 = 0;
+    var x_2 = 0;
+    var y_1 = 0;
+    var y_2 = 0;
+    if(spawn_xPos > source_xPos)
+    {
+        x_2 = spawn_xPos;
+        x_1 = source_xPos;
+    }
+    else
+    {
+        x_1 = spawn_xPos;
+        x_2 = source_xPos;
+    }
+    if(spawn_yPos > source_yPos)
+    {
+        y_2 = spawn_yPos;
+        y_1 = source_yPos;
+    }
+    else
+    {
+        y_1 = spawn_yPos;
+        y_2 = source_yPos;
+    }
+    var xCalc = ((x_2-x_1)*(x_2-x_1));
+    var yCalc = ((y_2-y_1)*(y_2-y_1));
+
+    var distance = Math.sqrt(xCalc+yCalc);
+
+    return distance;
 }

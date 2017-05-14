@@ -98,7 +98,7 @@ function goIdle(myCreep)
 	{
 		for (var flagName in Game.flags)
 		{
-			if(flagName.includes("miner"))
+			if(flagName.includes("miner") && Game.flags[flagName].pos.roomName==myCreep.room.name)
 			{
 				myCreep.memory.idleFlag=flagName;
 				break;

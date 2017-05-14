@@ -50,7 +50,7 @@ function reinforceWalls(creep)
         building = creep.memory.building;
     }
     /* Fix to make creps work multi-room */
-    var roomSpawn = Game.spawns['Spawn1']; // <- this gun break ?
+    var roomSpawn = Game.spawns['home']; // <- this gun break ?
     if(roomSpawn.memory.wallStr!=null)
     {
         wallStr = roomSpawn.memory.wallStr;
@@ -186,7 +186,7 @@ function goIdle(myCreep)
     {
         for (var flagName in Game.flags)
         {
-            if(flagName.includes("builder"))
+            if(flagName.includes("builder") && Game.flags[flagName].pos.roomName==myCreep.room.name)
             {
                 myCreep.memory.idleFlag=flagName;
                 break;

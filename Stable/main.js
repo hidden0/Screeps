@@ -51,7 +51,7 @@ var pilgrims;
 // - Creep body types
 var localMinerBody = [WORK, WORK, CARRY, MOVE, MOVE];
 var simpleMinerBody = [WORK, CARRY, MOVE, MOVE];
-var localUpgraderBody = [WORK, WORK, CARRY, CARRY, MOVE];
+var localUpgraderBody = [WORK, WORK, CARRY, MOVE];
 var builderBody = [WORK, CARRY, CARRY, MOVE];
 var expanderBody = [CLAIM, MOVE, MOVE];
 var pilgrimBody = [MOVE, MOVE, MOVE, CARRY, CARRY, WORK, WORK];
@@ -67,6 +67,8 @@ module.exports.loop = function () {
     	{
     		init(theSpawn);
     	}
+    	// Calculate what towers should do
+    	handleTowers(theSpawn);
     	// Population management - do we need to spawn a creep?
     	populationManager(theSpawn);
     }
@@ -74,6 +76,40 @@ module.exports.loop = function () {
 	manageCreeps();
 };
 
+// Handles Towers
+function handleTowers(theSpawn)
+{
+	// Targetting
+	var towers = theSpawn.room.find(
+            FIND_MY_STRUCTURES, {filter: {structureType: STRUCTURE_TOWER}});
+	var tRepairTargets = theSpawn.room.find(FIND_STRUCTURES, {
+                filter: (i) => (i.hits < (i.hitsMax) && i.structureType!=STRUCTURE_WALL)
+            });
+	var hostiles = theSpawn.room.find(FIND_HOSTILE_CREEPS);
+
+	// Prioritize hostiles!
+    
+    if(hostiles.length > 0) 
+    {
+        var username = hostiles[0].owner.username;
+        Game.notify(`User ${username} spotted in room ${theSpawn.room.name}`);
+        
+        towers.forEach(tower => tower.attack(hostiles[0]));
+    }
+    // Otherwise repair things
+    else
+    {
+        var i=0;
+        while(i<towers.length)
+        {
+            if(towers[i].energy>200)
+            {
+                towers[i].repair(tRepairTargets[0]);
+            }
+            i++;
+        }
+	}
+}
 // sets up counters and maximums for a room. Should be triggered via spawn memory for room
 function init(spawnPoint)
 {
@@ -127,7 +163,10 @@ function populationManager(spawnPoint)
     		builders.max=3;
     		break;
     }
+
     // Claim management
+    // #region - claims
+
     var claimFlag = null;
     if(spawnPoint.name=='home')
     {
@@ -145,15 +184,22 @@ function populationManager(spawnPoint)
 	    {
 	    	if(Game.rooms[spawnPoint.memory.targetRoom]!=null)
 		    	{
-		        if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner.username!="hidden0")
-		        {
-		            expanders.max=1;
-		        }
-		        else
-		        {
-		            expanders.max=0;
-		        }
-		        
+		    	    if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner!=null)
+		    	    {
+		                if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner.username!="hidden0")
+		                {
+		                    expanders.max=1;
+		                }
+		                else
+		                {
+		                    expanders.max=0;
+		                }
+		    	    }
+		            else
+		            {
+		                expanders.max=1;   
+		            }
+		    	}
 		        var spawnsInRoom = Game.rooms[spawnPoint.memory.targetRoom].find(FIND_STRUCTURES, {
 		                filter: (i) => (i.structureType==STRUCTURE_SPAWN)
 		            });
@@ -167,7 +213,7 @@ function populationManager(spawnPoint)
 		        {
 		            pilgrims.max=2;
 		        }
-	    	}
+	    	
 	    	if(claimFlag!=null)
 	    	{
 	    		expanders.max=1;
@@ -178,14 +224,40 @@ function populationManager(spawnPoint)
 	        expanders.max=0;
 	        pilgrims.max=0;
 	    }
-	}	
-	// localMiner management
+	}
+	// #endregion - claims
+
+	// population current counts
+	// checking room name for current room of spawn being calculated
+	// some creeps are global creeps and do not get this check
+
 	localMiners.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localMiner') && creep.room.name==spawnPoint.room.name).length;
 	upgraders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('upgrader') && creep.room.name==spawnPoint.room.name).length;
 	builders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('builder') && creep.room.name==spawnPoint.room.name).length;
-	expanders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('expander') && creep.room.name==spawnPoint.room.name).length;
-	pilgrims.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('pilgrim') && creep.room.name==spawnPoint.room.name).length;
+	expanders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('expander')).length;
+	pilgrims.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('pilgrim')).length;
 
+	// Economy management - go into energy reservation mode if we're below max miners and need energy
+	spawnPoint.memory.energyReserveMode=false;
+	var energyCounter = 0;
+	var i = 0;
+
+	var extensions = spawnPoint.room.find(FIND_STRUCTURES, {
+	            filter: (i) => (i.structureType==STRUCTURE_EXTENSION)
+	        });
+	while (i<extensions.length)
+	{
+		energyCounter+=extensions[i].energy;
+		i++;
+	}
+	energyCounter+=spawnPoint.energy;
+	if(energyCounter<250)
+	{
+		if(localMiners.current<localMiners.max)
+		{
+			spawnPoint.memory.energyReserveMode=true;
+		}
+	}
 	// Spawn needed creeps with if/else-if priortization
 	if(localMiners.current<localMiners.max)
 	{
@@ -336,6 +408,7 @@ function spawnCreep(type,spawnPoint)
 	    			}
     			}
 			}
+			break;
 		case "upgrader":
 			var creepName = type+spawnPoint.memory.creepCount;
 			if(trySpawn(creepName,localUpgraderBody,spawnPoint))

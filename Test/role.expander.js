@@ -54,6 +54,25 @@ var expanderCreep = {
 	    // otherwise move to the room
 	    else
 	    {
+	        if(creep.pos.x==0 || creep.pos.x==49 || creep.pos.y==0 || creep.pos.y==49)
+	        {
+	            if(creep.pos.y==0)
+	            {
+	                creep.move(BOTTOM);   
+	            }
+	            else if(creep.pos.x==0)
+	            {
+	                creep.move(RIGHT);
+	            }
+	            else if(creep.pos.y==49)
+	            {
+	                creep.move(TOP);
+	            }
+	            else if(creep.pos.x=49)
+	            {
+	                creep.move(LEFT);
+	            }
+	        }
 	        creep.moveTo(new RoomPosition(37, 37, creep.memory.targetRoom));
 	    }
 	}
@@ -75,7 +94,7 @@ function goIdle(myCreep)
 	{
 		for (var flagName in Game.flags)
 		{
-			if(flagName.includes("expander"))
+			if(flagName.includes("expander") && Game.flags[flagName].pos.roomName==myCreep.room.name)
 			{
 				myCreep.memory.idleFlag=flagName;
 				break;

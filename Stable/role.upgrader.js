@@ -10,6 +10,18 @@ var roleController = {
     **/
     run: function(creep) {
         // Tell the creep what to do based on the action value, if null figure out what state to
+        var homeRoom = null;
+        if(creep.memory.homeRoom==null)
+        {
+            for(var spawnP in Game.spawns)
+            {
+                if(Game.spawns[spawnP].room.name==creep.room.name)
+                {
+                    creep.memory.homeRoom=spawnP;
+                    break;
+                }
+            }
+        }
         switch(creep.memory.action)
         {
             // Creep is gettings points

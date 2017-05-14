@@ -10,7 +10,19 @@ If there is no energy to move or a need to move energy, perhaps salvage energy o
 var localTruckCreep = {
 	/** @param {Creep} creep object **/
 	run: function(creep) {
-        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!-null)
+        var homeRoom = null;
+        if(creep.memory.homeRoom==null)
+        {
+            for(var spawnP in Game.spawns)
+            {
+                if(Game.spawns[spawnP].room.name==creep.room.name)
+                {
+                    creep.memory.homeRoom=spawnP;
+                    break;
+                }
+            }
+        }
+        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!=null)
         {
             if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
             {
@@ -94,7 +106,7 @@ function getEnergy(creep)
     */
     var theController = creep.room.controller;
     var creepEnergy = creep.carry.energy;
-    var creepCapacity = creep.carry.capacity;
+    var creepCapacity = creep.carryCapacity;
     var withdrawE = creepCapacity - creepEnergy;
     var container = creep.room.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
@@ -139,7 +151,7 @@ function getEnergy(creep)
             creep.moveTo(energyStorage[0]);
         }
     }
-    if(creep.carry.energy==creep.carry.capacity)
+    if(creep.carry.energy==creep.carryCapacity)
     {
         creep.memory.full=true;
     }

@@ -39,6 +39,7 @@ var builder = require("role.builder");
 var expander = require("role.expander");
 var pilgrim = require("role.pilgrim");
 var localTruck = require("role.localTruck");
+var thief = require("role.thief");
 
 // Globals
 
@@ -58,6 +59,7 @@ var builderBody = [WORK, CARRY, CARRY, MOVE];
 var expanderBody = [CLAIM, MOVE, MOVE];
 var pilgrimBody = [MOVE, MOVE, MOVE, CARRY, CARRY, WORK, WORK];
 var localTruckBody = [MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
+var thiefBody = [MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 
 // Primary game loop
 module.exports.loop = function () {
@@ -140,7 +142,7 @@ function populationManager(spawnPoint)
     expanders 			= {current:0, max:0};
     pilgrims 			= {current:0, max:0};
     localTrucks			= {current:0, max:0};
-
+    thiefs				= {current:0, max:1};
     // Set maximums
     if(spawnPoint.memory.localMinersMax!=null)
     {
@@ -252,6 +254,7 @@ function populationManager(spawnPoint)
 	localTrucks.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('localTruck') && creep.room.name==spawnPoint.room.name).length;
 	expanders.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('expander')).length;
 	pilgrims.current	= _.filter(Game.creeps, (creep) => creep.memory.role.includes('pilgrim')).length;
+	thiefs.current		= _.filter(Game.creeps, (creep) => creep.memory.role.includes('thief')).length;
 
 	// Economy management - go into energy reservation mode if we're below max miners and need energy
 	spawnPoint.memory.energyReserveMode=false;
@@ -296,6 +299,11 @@ function populationManager(spawnPoint)
 		// try to spawn an upgrader
 		spawnCreep("localTruck",spawnPoint);
 	}
+	else if(thiefs.current<thiefs.max && spawnPoint.memory.spawnThief!=null)
+	{
+		// try to spawn an upgrader
+		spawnCreep("thief",spawnPoint);
+	}
 	else if(expanders.current<expanders.max && spawnPoint.name=='home')
 	{
 		// try to spawn an upgrader
@@ -335,6 +343,9 @@ function manageCreeps()
         	    break;
         	case 'localTruck':
         	    localTruck.run(creep);
+        	    break;
+        	case 'thief':
+        	    thief.run(creep);
         	    break;
         }
     }
@@ -463,6 +474,15 @@ function spawnCreep(type,spawnPoint)
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="expander";
+			}
+			break;
+		case "thief":
+			var creepName = type+spawnPoint.memory.creepCount;
+			if(trySpawn(creepName,thiefBody,spawnPoint))
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="thief";
+				newCreep.memory.steal="E33N98";
 			}
 			break;
 		case "pilgrim":

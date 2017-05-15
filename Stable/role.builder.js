@@ -130,6 +130,7 @@ function buildSites(creep)
     {
         building = creep.memory.building;
     }
+    
     // Do we have energy for the creep?
     if(creep.carry.energy < creep.carryCapacity && creep.memory.building==false)
     {
@@ -205,8 +206,7 @@ function goIdle(myCreep)
             }
         }
     }
-    // Should I leave idle?
-    setState(myCreep);
+    myCreep.memory.action=null;
 }
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)

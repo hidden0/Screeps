@@ -12,7 +12,7 @@ var localMinerCreep = {
 		if(creep.memory.source!=null && (creep.memory.full==false || creep.memory.full==null))
 		{
 			if(creep.harvest(Game.getObjectById(creep.memory.source)) == ERR_NOT_IN_RANGE) {
-	    			creep.moveTo(Game.getObjectById(creep.memory.source));
+	    			creep.moveTo(Game.getObjectById(creep.memory.source), {reusePath: 50});
     		}
     		if(creep.carry.energy==creep.carryCapacity)
     		{
@@ -39,7 +39,7 @@ var localMinerCreep = {
             if(targets.length > 0) {
                 //console.log("Moving to spawn to store energy.");
                 if(creep.transfer(targets[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(targets[0]);
+                    creep.moveTo(targets[0], {reusePath: 50});
                 }
             }
             // Extensions/spawns are full, find containers

@@ -88,7 +88,7 @@ function handleTowers(theSpawn)
 	var towers = theSpawn.room.find(
             FIND_MY_STRUCTURES, {filter: {structureType: STRUCTURE_TOWER}});
 	var tRepairTargets = theSpawn.room.find(FIND_STRUCTURES, {
-                filter: (i) => (i.hits < (i.hitsMax) && i.structureType!=STRUCTURE_WALL)
+                filter: (i) => (i.hits < (i.hitsMax) && (i.structureType!=STRUCTURE_WALL && i.structureType!=STRUCTURE_RAMPART))
             });
 	var hostiles = theSpawn.room.find(FIND_HOSTILE_CREEPS);
 

@@ -195,10 +195,11 @@ function goIdle(myCreep)
     // if a flag is already set, don't loop for it
     if(myCreep.memory.idleFlag!=null)
     {
-        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reusePathVal)==ERR_INVALID_TARGET)
+        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reusePathVal})==ERR_INVALID_TARGET)
         {
             myCreep.memory.idleFlag=null;
         }
+	else { console.log("Tick!");
     }
     // Otherwise, see if a flag is in the room
     else

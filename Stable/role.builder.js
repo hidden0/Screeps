@@ -13,6 +13,7 @@ var roleBuilder = {
     **/
     run: function(creep) {
         // Tell the creep what to do based on the action value, if null figure out what state to
+	var reusePathVal = 20;
         var homeRoom = null;
         if(creep.memory.homeRoom==null)
         {
@@ -194,7 +195,7 @@ function goIdle(myCreep)
     // if a flag is already set, don't loop for it
     if(myCreep.memory.idleFlag!=null)
     {
-        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag])==ERR_INVALID_TARGET)
+        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reusePathVal)==ERR_INVALID_TARGET)
         {
             myCreep.memory.idleFlag=null;
         }

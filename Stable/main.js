@@ -142,7 +142,7 @@ function populationManager(spawnPoint)
     expanders 			= {current:0, max:0};
     pilgrims 			= {current:0, max:0};
     localTrucks			= {current:0, max:0};
-    thiefs				= {current:0, max:1};
+    thiefs			= {current:0, max:0};
     // Set maximums
     if(spawnPoint.memory.localMinersMax!=null)
     {

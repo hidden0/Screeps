@@ -17,12 +17,25 @@ var rangedKiller = {
             if(enemies[i].owner!="hidden0")
             {
                 foundEnemies=true;
+                creep.memory.enemies=true;
+                break;
             }
         }
-        if(creep.memory.enemies==null || creep.memory.enemies==false)
+        if(foundEnemies==false)
         {
-            // check for enemies
-
+            creep.memory.enemies=false;
+        }
+        if(creep.memory.enemies==true)
+        {
+            // enemies found, kill nearest
+            var targets=creep.pos.findInRange(FIND_HOSTILE_CREEPS, 3);
+            if(targets.length > 0) {
+                creep.rangedAttack(targets[0]);
+            }
+            else
+            {
+                creep.moveTo(targets[0]);
+            }
         }
 		if(creep.memory.targetRoom!=null)
 		{
@@ -47,6 +60,7 @@ module.exports = rangedKiller;
 
 function goIdle(myCreep)
 {
+    var reUsePath = 20;
 	// if a flag is already set, don't loop for it
 	if(myCreep.memory.idleFlag!=null)
 	{

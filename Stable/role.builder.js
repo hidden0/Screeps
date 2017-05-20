@@ -192,6 +192,7 @@ function buildSites(creep)
 // *TODO* This needs to be unique to a room, so prefixing the name with the room name would be ideal.
 function goIdle(myCreep)
 {
+    var reusePathVal = 20;
     // if a flag is already set, don't loop for it
     if(myCreep.memory.idleFlag!=null)
     {
@@ -199,7 +200,6 @@ function goIdle(myCreep)
         {
             myCreep.memory.idleFlag=null;
         }
-	else { console.log("Tick!");
     }
     // Otherwise, see if a flag is in the room
     else

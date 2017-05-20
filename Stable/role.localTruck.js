@@ -40,9 +40,13 @@ var localTruckCreep = {
                         filter: (i) => ((i.structureType==STRUCTURE_TOWER)
                             && (i.energy < i.energyCapacity))
                     });
-                    var storage = creep.room.find(FIND_STRUCTURES, {
+                    var storageCont = creep.room.find(FIND_STRUCTURES, {
                         filter: (i) => ((i.structureType==STRUCTURE_STORAGE)
-                            && (i.store < i.storeCapacity))
+                            && (i.store['energy'] < i.storeCapacity))
+                    });
+                    var primaryStorage = creep.room.find(FIND_STRUCTURES, {
+                        filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_EXTENSION)
+                            && (i.energy < i.energyCapacity))
                     });
                     if(towers.length>0)
                     {
@@ -50,11 +54,15 @@ var localTruckCreep = {
                             creep.moveTo(towers[0]);
                         }
                     }
-                    // Otherwise storage structure
+                    // Otherwise storage structure logic
                     else
                     {
-                        if(creep.transfer(storage[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                            creep.moveTo(storage[0]);
+                        // if the spawn or extensions need energy, that takes precedence
+                        if(primaryStorage.length>0)
+                        {
+                            if(creep.transfer(primaryStorage[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                                creep.moveTo(primaryStorage[0]);
+                            }
                         }
                     }
                     if(creep.carry.energy==0)
@@ -108,43 +116,16 @@ function getEnergy(creep)
     var creepEnergy = creep.carry.energy;
     var creepCapacity = creep.carryCapacity;
     var withdrawE = creepCapacity - creepEnergy;
-    var container = creep.room.find(FIND_STRUCTURES, {
-        filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
-            && (i.store['energy'] > 0))
-    });
     var energyStorage = creep.room.find(FIND_STRUCTURES, {
-        filter: (i) => ((i.structureType==STRUCTURE_SPAWN)
-            && (i.energy > 0))
+        filter: (i) => ((i.structureType==STRUCTURE_STORAGE)
+            && (i.store['energy'] > 0))
     });
     // Now that energy storage is identified, loop through the array to find the closest energy storage
     var i=0;
     var winner_index=0;
     var lowest=null;
     var dist=0;
-    if(container.length)
-    {
-        while(i<container.length)
-        {
-            dist = mapDistance(creep,container[i]);
-            //console.log("Container["+i+"] distance: " + dist);
-            if(lowest==null)
-            {
-                lowest=dist;
-            }
-            else if(dist<lowest)
-            {
-                lowest=dist;
-                winner_index=i;
-            }
-            i++;
-        }
-        //console.log("Container["+winner_index+"] chosen winner: " + lowest);
-        if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
-        {
-            creep.moveTo(container[winner_index]);
-        }
-    }
-    else
+    if(energyStorage.length)
     {
         if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
         {

@@ -126,6 +126,11 @@ function buildSites(creep)
     var targetSite;
     var constructionSites = null; // Assume no sites every tick
     var building = null;
+    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==true)
+    {
+        creep.memory.action='idle';
+        return;
+    }
     if(creep.memory.building!=null)
     {
         building = creep.memory.building;

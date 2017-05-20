@@ -8,11 +8,12 @@ var localMinerCreep = {
 	/** @param {Creep} creep object **/
 	/** goal: mine source **/
 	run: function(creep) {
+	    var reUsePath = 20;
 		// Mine if assigned a source
 		if(creep.memory.source!=null && (creep.memory.full==false || creep.memory.full==null))
 		{
 			if(creep.harvest(Game.getObjectById(creep.memory.source)) == ERR_NOT_IN_RANGE) {
-	    			creep.moveTo(Game.getObjectById(creep.memory.source));
+	    			creep.moveTo(Game.getObjectById(creep.memory.source), {reusePath: reUsePath});
     		}
     		if(creep.carry.energy==creep.carryCapacity)
     		{
@@ -39,7 +40,7 @@ var localMinerCreep = {
             if(targets.length > 0) {
                 //console.log("Moving to spawn to store energy.");
                 if(creep.transfer(targets[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(targets[0]);
+                    creep.moveTo(targets[0], {reusePath: reUsePath});
                 }
             }
             // Extensions/spawns are full, find containers
@@ -88,7 +89,7 @@ function goIdle(myCreep)
 	// if a flag is already set, don't loop for it
 	if(myCreep.memory.idleFlag!=null)
 	{
-		if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag])==ERR_INVALID_TARGET)
+		if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reUsePath})==ERR_INVALID_TARGET)
 		{
 			myCreep.memory.idleFlag=null;
 		}

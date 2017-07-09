@@ -51,10 +51,11 @@ var builders;
 var expanders;
 var pilgrims;
 var localTrucks;
+var thiefs;
 var rangedKillers;
 
 // - Creep body types
-var localMinerBody = [WORK, WORK, CARRY, MOVE, MOVE];
+var localMinerBody = [WORK, WORK, CARRY, MOVE];
 var simpleMinerBody = [WORK, CARRY, MOVE, MOVE];
 var localUpgraderBody = [WORK, WORK, CARRY, MOVE];
 var builderBody = [WORK, CARRY, CARRY, MOVE];
@@ -63,6 +64,9 @@ var pilgrimBody = [MOVE, MOVE, MOVE, CARRY, CARRY, WORK, WORK];
 var localTruckBody = [MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 var thiefBody = [MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 var rangedKillerBody = [RANGED_ATTACK, RANGED_ATTACK, RANGED_ATTACK, RANGED_ATTACK, RANGED_ATTACK, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, WORK, CARRY];
+
+// tier 2 body types
+var upgraderTier2 = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
 
 // Primary game loop
 module.exports.loop = function () {
@@ -172,9 +176,13 @@ function populationManager(spawnPoint)
     		builders.max=3;
     		break;
     	case 3:
-    		upgraders.max=2;
+    		upgraders.max=3;
     		builders.max=3;
     		//upgraders2.max=3;
+    		break;
+    	case 4:
+    		upgraders.max=3;
+    		builders.max=3;
     		break;
     	default:
     		upgraders.max=2;
@@ -212,23 +220,26 @@ function populationManager(spawnPoint)
 	    if(spawnPoint.memory.targetRoom!=null)
 	    {
 	    	if(Game.rooms[spawnPoint.memory.targetRoom]!=null)
-		    	{
-		    	    if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner!=null)
-		    	    {
-		                if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner.username!="hidden0")
-		                {
-		                    expanders.max=1;
-		                }
-		                else
-		                {
-		                    expanders.max=0;
-		                }
-		    	    }
-		            else
-		            {
-		                expanders.max=1;   
-		            }
-		    	}
+	    	{
+	    	    if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner!=null)
+	    	    {
+	                if(Game.rooms[spawnPoint.memory.targetRoom].controller.owner.username!="hidden0")
+	                {
+	                    expanders.max=1;
+	                }
+	                else
+	                {
+	                    expanders.max=0;
+	                }
+	    	    }
+	            else
+	            {
+	                expanders.max=1;   
+	            }
+	    	}
+	    	var claimTargetRoom = Game.rooms[spawnPoint.memory.targetRoom];
+	    	if(claimTargetRoom!=null)
+	    	{
 		        var spawnsInRoom = Game.rooms[spawnPoint.memory.targetRoom].find(FIND_STRUCTURES, {
 		                filter: (i) => (i.structureType==STRUCTURE_SPAWN)
 		            });
@@ -242,7 +253,7 @@ function populationManager(spawnPoint)
 		        {
 		            pilgrims.max=2;
 		        }
-	    	
+	    	}
 	    	if(claimFlag!=null)
 	    	{
 	    		expanders.max=1;
@@ -294,7 +305,6 @@ function populationManager(spawnPoint)
 	if(localMiners.current<localMiners.max)
 	{
 		// try to spawn a localMiner
-		
 		spawnCreep("localMiner",spawnPoint);
 	}
 	else if(upgraders.current<upgraders.max)
@@ -436,6 +446,7 @@ function spawnCreep(type,spawnPoint)
 	{
 		case "localMiner":
 			var creepName = type+spawnPoint.memory.creepCount;
+			var curEnergy = spawnPoint.room.energyAvailable;
 			if(trySpawn(creepName,localMinerBody,spawnPoint))
 			{
 				newCreep = Game.creeps[creepName];
@@ -467,7 +478,12 @@ function spawnCreep(type,spawnPoint)
 			break;
 		case "upgrader":
 			var creepName = type+spawnPoint.memory.creepCount;
-			if(trySpawn(creepName,localUpgraderBody,spawnPoint))
+			if(trySpawn(creepName,upgraderTier2,spawnPoint) && spawnPoint.room.controller.level>3)
+			{
+				newCreep = Game.creeps[creepName];
+				newCreep.memory.role="upgrader";
+			}
+			else if(trySpawn(creepName,localUpgraderBody,spawnPoint))
 			{
 				newCreep = Game.creeps[creepName];
 				newCreep.memory.role="upgrader";

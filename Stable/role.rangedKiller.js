@@ -10,7 +10,7 @@ var rangedKiller = {
 	run: function(creep) {
 	    var reUsePath = 20;
 		// Path - am I in a room with enemies?
-        var enemies = creep.room.find(FIND_CREEPS);
+        var enemies = creep.room.find(FIND_HOSTILE_CREEPS);
         var foundEnemies = false;
         for(var i = 0; i<enemies.length; i++)
         {
@@ -25,19 +25,9 @@ var rangedKiller = {
         {
             creep.memory.enemies=false;
         }
-        if(creep.memory.enemies==true)
-        {
-            // enemies found, kill nearest
-            var targets=creep.pos.findInRange(FIND_HOSTILE_CREEPS, 3);
-            if(targets.length > 0) {
-                creep.rangedAttack(targets[0]);
-            }
-            else
-            {
-                creep.moveTo(targets[0]);
-            }
-        }
-		if(creep.memory.targetRoom!=null)
+
+        // if my targetRoom variable in memory isn't empty and I'm in the wrong room, do this:
+		if(creep.memory.targetRoom!=null && creep.room.roomName!=creep.memory.targetRoom)
 		{
             var borderCheck = checkPerim(creep.pos);
 			if(borderCheck!=true)
@@ -49,6 +39,31 @@ var rangedKiller = {
                 creep.moveTo(new RoomPosition(37, 37, creep.memory.targetRoom));
             }
 		}
+        // FINALLY: I'm in the target room!
+        else if(creep.memory.targetRoom!=null && creep.room.roomName==creep.memory.targetRoom)
+        {
+            // Here is attack logic. For this run, there is a tower that is gonna wreck me. I'm going to dismantle it first.
+            var enemyTowers = creep.room.find(FIND_STRUCTURES, {
+                filter: (i) => i.structureType == STRUCTURE_TOWER
+            });
+            if(enemyTowers.length)
+            {
+                // Go dismantle that sucker
+            }
+            // If in a room with enemies do this:
+            if(creep.memory.enemies==true)
+            {
+                // enemies found, kill nearest
+                var targets=creep.pos.findInRange(FIND_HOSTILE_CREEPS, 3);
+                if(targets.length > 0) {
+                    creep.rangedAttack(targets[0]);
+                }
+                else
+                {
+                    creep.moveTo(targets[0]);
+                }
+            }
+        }
 		// Otherwise find a flag containing "soldier"
 		else
 		{
@@ -56,6 +71,7 @@ var rangedKiller = {
 		}
 	}
 };
+
 module.exports = rangedKiller;
 
 function goIdle(myCreep)

@@ -4,7 +4,7 @@ It will return energy to the nearest storage source with available space.
 If idle, it will find a flag on the room with the word "miner" in it.
 ***/
 
-var localMinerCreep = {
+var thiefCreep = {
     /** @param {Creep} creep object **/
     /** goal: mine source **/
     run: function(creep) {
@@ -110,7 +110,7 @@ var localMinerCreep = {
         }
     }
 };
-module.exports = localMinerCreep;
+module.exports = thiefCreep;
 
 function goIdle(myCreep)
 {

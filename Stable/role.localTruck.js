@@ -38,7 +38,7 @@ var localTruckCreep = {
                     // Take energy to towers that need it
                     var towers = creep.room.find(FIND_STRUCTURES, {
                         filter: (i) => ((i.structureType==STRUCTURE_TOWER)
-                            && (i.energy < i.energyCapacity))
+                            && (i.energy < (i.energyCapacity-100)))
                     });
                     var storageCont = creep.room.find(FIND_STRUCTURES, {
                         filter: (i) => ((i.structureType==STRUCTURE_STORAGE)

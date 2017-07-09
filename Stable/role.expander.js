@@ -25,55 +25,43 @@ var expanderCreep = {
 	    }
 	    if(creep.memory.targetRoom==creep.room.name)
 	    {
-	        if(creep.pos.x==0 || creep.pos.x==49 || creep.pos.y==0 || creep.pos.y==49)
-	        {
-	            if(creep.pos.y==0)
-	            {
-	                creep.move(BOTTOM);   
-	            }
-	            else if(creep.pos.x==0)
-	            {
-	                creep.move(RIGHT);
-	            }
-	            else if(creep.pos.y==49)
-	            {
-	                creep.move(TOP);
-	            }
-	            else if(creep.pos.x=49)
-	            {
-	                creep.move(LEFT);
-	            }
-	        }
-	        // Step 1 - claim
-    		if(creep.room.controller && creep.room.controller.owner!="hidden0") {
-                if(creep.claimController(creep.room.controller) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(creep.room.controller);
-                }
+	        var borderCheck = checkPerim(creep.pos);
+			if(borderCheck!=true)
+            {
+                creep.move(borderCheck);
             }
+            else
+            {
+                // Step 1 - claim
+	    		if(creep.room.controller.owner!="hidden0") {
+
+	                if(creep.claimController(creep.room.controller) == ERR_NOT_IN_RANGE) {
+	                	var moveResult = creep.moveTo(creep.room.controller);
+	                    if(moveResult!=OK)
+	                    {
+	                    	if(moveResult==ERR_NO_PATH)
+	                    	{
+	                    		// Move a direction a few times
+	                    		creep.move(LEFT);
+	                    	}
+	                    }
+	                }
+	            }
+            }
+	        
 	    }
 	    // otherwise move to the room
 	    else
 	    {
-	        if(creep.pos.x==0 || creep.pos.x==49 || creep.pos.y==0 || creep.pos.y==49)
-	        {
-	            if(creep.pos.y==0)
-	            {
-	                creep.move(BOTTOM);   
-	            }
-	            else if(creep.pos.x==0)
-	            {
-	                creep.move(RIGHT);
-	            }
-	            else if(creep.pos.y==49)
-	            {
-	                creep.move(TOP);
-	            }
-	            else if(creep.pos.x=49)
-	            {
-	                creep.move(LEFT);
-	            }
-	        }
-	        creep.moveTo(new RoomPosition(37, 37, creep.memory.targetRoom));
+	        var borderCheck = checkPerim(creep.pos);
+			if(borderCheck!=true)
+            {
+                creep.move(borderCheck);
+            }
+            else
+            {
+                creep.moveTo(new RoomPosition(37, 37, creep.memory.targetRoom));
+            }
 	    }
 	}
 };
@@ -101,4 +89,31 @@ function goIdle(myCreep)
 			}
 		}
 	}
+}
+
+function checkPerim(cPos)
+{
+    if(cPos.x==0 || cPos.x==49 || cPos.y==0 || cPos.y==49)
+    {
+        if(cPos.y==0)
+        {
+            return BOTTOM;
+        }
+        else if(cPos.x==0)
+        {
+            return RIGHT;
+        }
+        else if(cPos.y==49)
+        {
+            return TOP;
+        }
+        else if(cPos.x=49)
+        {
+            return LEFT;
+        }
+    }
+    else
+    {
+        return true;
+    }
 }

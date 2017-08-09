@@ -8,7 +8,7 @@ var localMinerCreep = {
 	/** @param {Creep} creep object **/
 	/** goal: mine source **/
 	run: function(creep) {
-	    var reUsePath = 20;
+	    var reUsePath = 5;
 		// Mine if assigned a source
 		if(creep.memory.source!=null && (creep.memory.full==false || creep.memory.full==null))
 		{
@@ -38,9 +38,18 @@ var localMinerCreep = {
                                i.store[RESOURCE_ENERGY] < i.storeCapacity
             });
             if(targets.length > 0) {
-                //console.log("Moving to spawn to store energy.");
-                if(creep.transfer(targets[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(targets[0], {reusePath: reUsePath});
+                // Fill extensions first to prioritize creep spawning
+                var i = 0;
+                if(targets[i].structureType!=STRUCTURE_EXTENSION)
+                {
+                    i++;
+                }
+                if(i==targets.length && targets[i]!=STRUCTURE_EXTENSION)
+                {
+                    i=0;
+                }
+                if(creep.transfer(targets[i], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(targets[i], {reusePath: reUsePath});
                 }
             }
             // Extensions/spawns are full, find containers
@@ -59,7 +68,7 @@ var localMinerCreep = {
             else
             {
             	// At least we could dump some of it? Go back to mining...
-            	if(creep.carry.energy<creep.carryCapacity)
+            	if(creep.carry.energy==0)
             	{
             		creep.memory.full=false;
             	}

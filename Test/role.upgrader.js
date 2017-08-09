@@ -10,6 +10,18 @@ var roleController = {
     **/
     run: function(creep) {
         // Tell the creep what to do based on the action value, if null figure out what state to
+        var homeRoom = null;
+        if(creep.memory.homeRoom==null)
+        {
+            for(var spawnP in Game.spawns)
+            {
+                if(Game.spawns[spawnP].room.name==creep.room.name)
+                {
+                    creep.memory.homeRoom=spawnP;
+                    break;
+                }
+            }
+        }
         switch(creep.memory.action)
         {
             // Creep is gettings points
@@ -31,26 +43,35 @@ var roleController = {
 // getPoints(creep): Go upgrade the controller!
 function getPoints(creep) {
     // Upgrade the controller
-
-    // Do we have energy for the creep?
-    if(creep.carry.energy < creep.carryCapacity && creep.memory.points==false)
+    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!=null)
     {
-        // Go get some!
-        getEnergy(creep);
-    }
-
-    // Else, upgrade the controller
-    else
-    {
-        creep.memory.points=true;
-        var output = creep.upgradeController(creep.room.controller);
-        if(output == ERR_NOT_IN_RANGE)
+        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
         {
-            creep.moveTo(creep.room.controller);
+            // Do we have energy for the creep?
+            if(creep.carry.energy < creep.carryCapacity && creep.memory.points==false)
+            {
+                // Go get some!
+                getEnergy(creep);
+            }
+
+            // Else, upgrade the controller
+            else
+            {
+                creep.memory.points=true;
+                var output = creep.upgradeController(creep.room.controller);
+                if(output == ERR_NOT_IN_RANGE)
+                {
+                    creep.moveTo(creep.room.controller);
+                }
+                else if(output == ERR_NOT_ENOUGH_ENERGY)
+                {
+                    creep.memory.points=false; // resets need for energy
+                }
+            }
         }
-        else if(output == ERR_NOT_ENOUGH_ENERGY)
+        else
         {
-            creep.memory.points=false; // resets need for energy
+            goIdle(creep);
         }
     }
 }
@@ -123,7 +144,7 @@ function getEnergy(creep)
         while(i<container.length)
         {
             dist = mapDistance(creep,container[i]);
-            console.log("Container["+i+"] distance: " + dist);
+            //console.log("Container["+i+"] distance: " + dist);
             if(lowest==null)
             {
                 lowest=dist;
@@ -135,7 +156,7 @@ function getEnergy(creep)
             }
             i++;
         }
-        console.log("Container["+winner_index+"] chosen winner: " + lowest);
+        //console.log("Container["+winner_index+"] chosen winner: " + lowest);
         if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
         {
             creep.moveTo(container[winner_index]);

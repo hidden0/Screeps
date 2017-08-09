@@ -13,6 +13,19 @@ var roleBuilder = {
     **/
     run: function(creep) {
         // Tell the creep what to do based on the action value, if null figure out what state to
+	var reusePathVal = 20;
+        var homeRoom = null;
+        if(creep.memory.homeRoom==null)
+        {
+            for(var spawnP in Game.spawns)
+            {
+                if(Game.spawns[spawnP].room.name==creep.room.name)
+                {
+                    creep.memory.homeRoom=spawnP;
+                    break;
+                }
+            }
+        }
         switch(creep.memory.action)
         {
             // Creep is reinforcing walls
@@ -50,7 +63,7 @@ function reinforceWalls(creep)
         building = creep.memory.building;
     }
     /* Fix to make creps work multi-room */
-    var roomSpawn = Game.spawns['home']; // <- this gun break ?
+    var roomSpawn = Game.spawns[creep.memory.homeRoom]; // <- this gun break ?
     if(roomSpawn.memory.wallStr!=null)
     {
         wallStr = roomSpawn.memory.wallStr;
@@ -114,10 +127,16 @@ function buildSites(creep)
     var targetSite;
     var constructionSites = null; // Assume no sites every tick
     var building = null;
+    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==true)
+    {
+        creep.memory.action='idle';
+        return;
+    }
     if(creep.memory.building!=null)
     {
         building = creep.memory.building;
     }
+    
     // Do we have energy for the creep?
     if(creep.carry.energy < creep.carryCapacity && creep.memory.building==false)
     {
@@ -173,10 +192,11 @@ function buildSites(creep)
 // *TODO* This needs to be unique to a room, so prefixing the name with the room name would be ideal.
 function goIdle(myCreep)
 {
+    var reusePathVal = 20;
     // if a flag is already set, don't loop for it
     if(myCreep.memory.idleFlag!=null)
     {
-        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag])==ERR_INVALID_TARGET)
+        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reusePathVal})==ERR_INVALID_TARGET)
         {
             myCreep.memory.idleFlag=null;
         }
@@ -193,53 +213,62 @@ function goIdle(myCreep)
             }
         }
     }
-    // Should I leave idle?
-    setState(myCreep);
+    myCreep.memory.action=null;
 }
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)
 {
-    var walls = creep.room.find(FIND_STRUCTURES, {
-            filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
-        });
-    var sites = creep.room.find(FIND_CONSTRUCTION_SITES);
-    // Is action set?
-    if(creep.memory.action==null || creep.memory.action=='idle')
+    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!=null)
     {
-        // What should this creep do right now?
-        if(walls.length>0)
+        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
         {
-            creep.memory.action='walls';
-        }
-        else if(sites.length>0)
-        {
-            creep.memory.action='sites';
+            var walls = creep.room.find(FIND_STRUCTURES, {
+            filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
+                });
+            var sites = creep.room.find(FIND_CONSTRUCTION_SITES);
+            // Is action set?
+            if(creep.memory.action==null || creep.memory.action=='idle')
+            {
+                // What should this creep do right now?
+                if(walls.length>0)
+                {
+                    creep.memory.action='walls';
+                }
+                else if(sites.length>0)
+                {
+                    creep.memory.action='sites';
+                }
+                else
+                {
+                    creep.memory.action='idle';
+                }
+            }
+            // Should the action be unset?
+            else
+            {
+                if(creep.memory.action!='idle')
+                {
+                    if(walls.length <= 0 && creep.memory.action=='walls')
+                    {
+                        creep.memory.action=null;
+                    }
+                    else if(sites.length <= 0 && creep.memory.action=='sites')
+                    {
+                        creep.memory.action=null;
+                    }
+                    else
+                    {
+                        if((walls.length || sites.length) && creep.memory.action=='idle')
+                        {
+                            creep.memory.action=null;
+                        }
+                    }
+                }
+            }
         }
         else
         {
-            creep.memory.action='idle';
-        }
-    }
-    // Should the action be unset?
-    else
-    {
-        if(creep.memory.action!='idle')
-        {
-            if(walls.length <= 0 && creep.memory.action=='walls')
-            {
-                creep.memory.action=null;
-            }
-            else if(sites.length <= 0 && creep.memory.action=='sites')
-            {
-                creep.memory.action=null;
-            }
-            else
-            {
-                if((walls.length || sites.length) && creep.memory.action=='idle')
-                {
-                    creep.memory.action=null;
-                }
-            }
+            goIdle(creep);
         }
     }
 }

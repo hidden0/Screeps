@@ -55,7 +55,7 @@ var thiefs;
 var rangedKillers;
 
 // - Creep body types
-var localMinerBody = [WORK, WORK, CARRY, MOVE];
+var localMinerBody = [WORK, WORK, CARRY, CARRY, MOVE];
 var simpleMinerBody = [WORK, CARRY, MOVE, MOVE];
 var localUpgraderBody = [WORK, WORK, CARRY, MOVE];
 var builderBody = [WORK, CARRY, CARRY, MOVE];

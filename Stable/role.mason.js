@@ -1,4 +1,4 @@
-var roleBuilder = {
+var roleMason = {
     /** @param {Creep} creep
         @Description: To maintain the hive. The builder ensures all buildings are constructed, and walls maintained.
 
@@ -6,10 +6,6 @@ var roleBuilder = {
             - 1) Wall upkeep. The spawn will hold a value for wallStr in memory, and this should be the
                 minimum wall strength of all walls in the current room. Maintain this first!
                 creep.memory.action = 'walls';
-            - 2) Constructions sites. The builder, if not busy with walls, will build construction sites if they exist.
-                creep.memory.action = 'sites';
-            - 3) Chill out at the builder flag (idle mode). Just be ready for scenario 1 or 2.
-                creep.memory.action = 'idle';
     **/
     run: function(creep) {
         // Tell the creep what to do based on the action value, if null figure out what state to
@@ -28,9 +24,13 @@ var roleBuilder = {
         }
         switch(creep.memory.action)
         {
-            // Creep is building sites
-            case 'sites':
-                buildSites(creep);
+            // Creep is reinforcing walls
+            case 'walls':
+                reinforceWalls(creep);
+                break;
+            // Creep is reinforcing ramparts
+            case 'ramparts':
+                reinforceRamparts(creep);
                 break;
             // Creep is chilling out
             case 'idle':
@@ -44,72 +44,144 @@ var roleBuilder = {
     }
 };
 
-module.exports = roleBuilder;
+module.exports = roleMason;
 
 // Methods region
+var wallStr = 500; // default wall strength so nothing is ever at 1
 
-// buildSites(creep): No walls to be built, so build sites if they exist.
-function buildSites(creep)
+function reinforceRamparts(creep)
 {
-    var targetSite;
-    var constructionSites = null; // Assume no sites every tick
-    var building = null;
-    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==true)
-    {
-        creep.memory.action='idle';
-        return;
-    }
+
+    var walls;
+    var targetWall; // The wall this creep is currently working on
     if(creep.memory.building!=null)
     {
         building = creep.memory.building;
     }
-    
+    /* Fix to make creps work multi-room */
+    var roomSpawn = Game.spawns[creep.memory.homeRoom]; // <- this gun break ?
+    if(roomSpawn.memory.wallStr!=null)
+    {
+        wallStr = roomSpawn.memory.wallStr;
+    }
     // Do we have energy for the creep?
     if(creep.carry.energy == 0 && creep.memory.building==false)
     {
         // Go get some!
         getEnergy(creep);
     }
-    // If we do have energy, great! Build sites
+    // If we do have energy, great! Fix walls
     else
     {
-        // Energy obtained, set "building" to true until we can't
+        // Energy obtained, set "creep.memory.building" to true until we can't
         creep.memory.building=true;
         // Does the creep have a target already?
-        if(creep.memory.targetSite!=null)
+        if(creep.memory.targetWall!=null)
         {
             // Repair the wall to the necessary strength
-            targetSite = Game.getObjectById(creep.memory.targetSite);
-            var output = creep.build(targetSite);
+            targetWall = Game.getObjectById(creep.memory.targetWall);
+            var output = creep.repair(targetWall);
             if(output == ERR_NOT_IN_RANGE)
             {
-                creep.moveTo(targetSite);
+                creep.moveTo(targetWall);
             }
             else if(output == ERR_NOT_ENOUGH_ENERGY)
             {
                 creep.memory.building=false; // resets need for energy
             }
-            else if (output == ERR_INVALID_TARGET) 
+            // Remember to unset this target from memory when we hit our target strength
+            if(targetWall.hits >= wallStr)
             {
-                creep.memory.targetSite=null
-                creep.memory.building=false;
+                creep.memory.targetWall=null;
             }
-            
+        }
+        // Creep doesn't have a target, so find the closest one and keep it in memory
+        else
+        {
+            // Find all RAMPARTS and store them in memory
+            walls = creep.room.find(FIND_STRUCTURES, {
+                filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_RAMPART)
+            });
+
+            // Were there any walls?
+            if(walls.length>0)
+            {
+                // Set the target
+                creep.memory.targetWall = walls[0].id;
+            }
+            // Otherwise, reset state check
+            else
+            {
+                creep.memory.action=null;
+            }
+        }
+    }
+}
+
+// reinforceWalls(creep): Find a wall that is below target strength and reinforce.
+function reinforceWalls(creep)
+{
+
+    var walls;
+    var targetWall; // The wall this creep is currently working on
+    if(creep.memory.building!=null)
+    {
+        building = creep.memory.building;
+    }
+    /* Fix to make creps work multi-room */
+    var roomSpawn = Game.spawns[creep.memory.homeRoom]; // <- this gun break ?
+    if(roomSpawn.memory.wallStr!=null)
+    {
+        wallStr = roomSpawn.memory.wallStr;
+    }
+    // Do we have energy for the creep?
+    if(creep.carry.energy == 0 && creep.memory.building==false)
+    {
+        // Go get some!
+        getEnergy(creep);
+    }
+    // If we do have energy, great! Fix walls
+    else
+    {
+        // Energy obtained, set "creep.memory.building" to true until we can't
+        creep.memory.building=true;
+        // Does the creep have a target already?
+        if(creep.memory.targetWall!=null)
+        {
+            // Repair the wall to the necessary strength
+            targetWall = Game.getObjectById(creep.memory.targetWall);
+            var output = creep.repair(targetWall);
+            if(output == ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(targetWall);
+            }
+            else if(output == ERR_NOT_ENOUGH_ENERGY)
+            {
+                creep.memory.building=false; // resets need for energy
+            }
+            // Remember to unset this target from memory when we hit our target strength
+            if(targetWall.hits >= wallStr)
+            {
+                creep.memory.targetWall=null;
+            }
         }
         // Creep doesn't have a target, so find the closest one and keep it in memory
         else
         {
             // Find all walls and store them in memory
-            constructionSites = creep.room.find(FIND_CONSTRUCTION_SITES)
-            // Set the target
-            if(constructionSites.length)
+            walls = creep.room.find(FIND_STRUCTURES, {
+                filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
+            });
+
+            // Were there any walls?
+            if(walls.length>0)
             {
-                creep.memory.targetSite = constructionSites[0].id;
+                // Set the target
+                creep.memory.targetWall = walls[0].id;
             }
+            // Otherwise, reset state check
             else
             {
-                creep.memory.targetSite=null
-                creep.memory.building=false;
                 creep.memory.action=null;
             }
         }
@@ -149,14 +221,28 @@ function setState(creep)
     {
         if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
         {
-            var sites = creep.room.find(FIND_CONSTRUCTION_SITES);
+            var wallStr = 500
+            if(Game.spawns[creep.memory.homeRoom].memory.wallStr!=null)
+            {
+                wallStr = Game.spawns[creep.memory.homeRoom].memory.wallStr;
+            }
+            var walls = creep.room.find(FIND_STRUCTURES, {
+            filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_WALL)
+                });
+            var ramparts = creep.room.find(FIND_STRUCTURES, {
+            filter: (i) => (i.hits < (wallStr) && i.structureType==STRUCTURE_RAMPART)
+                });
             // Is action set?
             if(creep.memory.action==null || creep.memory.action=='idle')
             {
                 // What should this creep do right now?
-                if(sites.length>0)
+                if(walls.length>0)
                 {
-                    creep.memory.action='sites';
+                    creep.memory.action='walls';
+                }
+                else if(ramparts.length>0)
+                {
+                    creep.memory.action='ramparts';
                 }
                 else
                 {
@@ -168,7 +254,11 @@ function setState(creep)
             {
                 if(creep.memory.action!='idle')
                 {
-                    if(sites.length <= 0 && creep.memory.action=='sites')
+                    if(walls.length <= 0 && creep.memory.action=='walls')
+                    {
+                        creep.memory.action=null;
+                    }
+                    else if(sites.length <= 0 && creep.memory.action=='sites')
                     {
                         creep.memory.action=null;
                     }

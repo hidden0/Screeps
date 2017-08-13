@@ -13,9 +13,9 @@ var expanderCreep = {
 	    // What is the target?
 	    if(creep.memory.targetRoom==null)
 	    {
-	        if(Game.spawns['home'].memory.targetRoom!=null)
+	        if(Game.spawns['Spawn1'].memory.targetRoom!=null)
 	        {
-	            creep.memory.targetRoom=Game.spawns['home'].memory.targetRoom;
+	            creep.memory.targetRoom=Game.spawns['Spawn1'].memory.targetRoom;
 	        }
 	        else
 	        {

@@ -48,6 +48,11 @@ var localTruckCreep = {
                         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_EXTENSION)
                             && (i.energy < i.energyCapacity))
                     });
+                    // Finally, lowest priority, fill the base link with energy.
+                    // Base link is the first link built in the room.
+                    var baseLink = creep.room.find(FIND_STRUCTURES, {
+                        filter: (i) => ((i.structureType==STRUCTURE_LINK))
+                    });
                     if(towers.length>0)
                     {
                         if(creep.transfer(towers[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
@@ -62,6 +67,17 @@ var localTruckCreep = {
                         {
                             if(creep.transfer(primaryStorage[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
                                 creep.moveTo(primaryStorage[0]);
+                            }
+                        }
+                        // Finally, fill that base link with energy
+                        else if(baseLink.length>0)
+                        {
+                            // link[0] is always the one we fill first.
+                            if(baseLink[0].energy < baseLink[0].energyCapacity)
+                            {
+                                if(creep.transfer(baseLink[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                                    creep.moveTo(baseLink[0]);
+                                }
                             }
                         }
                     }

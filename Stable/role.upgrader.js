@@ -130,6 +130,10 @@ function getEnergy(creep)
         filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
             && (i.store['energy'] > 0))
     });
+    var secondaryLink = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_LINK)
+            && (i.energy > 0))
+    });
     var energyStorage = creep.room.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_STORAGE)
             && (i.energy > 0))
@@ -139,34 +143,46 @@ function getEnergy(creep)
     var winner_index=0;
     var lowest=null;
     var dist=0;
-    if(container.length)
+
+    // A secondary link would have been placed opportunely. Use it as the highest priority
+    if(secondaryLink.length>1)
     {
-        while(i<container.length)
+        if(creep.withdraw(secondaryLink[1],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
         {
-            dist = mapDistance(creep,container[i]);
-            //console.log("Container["+i+"] distance: " + dist);
-            if(lowest==null)
-            {
-                lowest=dist;
-            }
-            else if(dist<lowest)
-            {
-                lowest=dist;
-                winner_index=i;
-            }
-            i++;
-        }
-        //console.log("Container["+winner_index+"] chosen winner: " + lowest);
-        if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
-        {
-            creep.moveTo(container[winner_index]);
+            creep.moveTo(secondaryLink[1]);
         }
     }
     else
     {
-        if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        if(container.length)
         {
-            creep.moveTo(energyStorage[0]);
+            while(i<container.length)
+            {
+                dist = mapDistance(creep,container[i]);
+                //console.log("Container["+i+"] distance: " + dist);
+                if(lowest==null)
+                {
+                    lowest=dist;
+                }
+                else if(dist<lowest)
+                {
+                    lowest=dist;
+                    winner_index=i;
+                }
+                i++;
+            }
+            //console.log("Container["+winner_index+"] chosen winner: " + lowest);
+            if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(container[winner_index]);
+            }
+        }
+        else
+        {
+            if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+            {
+                creep.moveTo(energyStorage[0]);
+            }
         }
     }
 }

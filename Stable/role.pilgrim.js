@@ -6,9 +6,9 @@ var pilgrimCreep = {
         // Tell the creep what to do based on the action value, if null figure out what state to
         if(creep.memory.targetRoom==null)
 	    {
-	        if(Game.spawns['home'].memory.targetRoom!=null)
+	        if(Game.spawns['Spawn1'].memory.targetRoom!=null)
 	        {
-	            creep.memory.targetRoom=Game.spawns['home'].memory.targetRoom;
+	            creep.memory.targetRoom=Game.spawns['Spawn1'].memory.targetRoom;
 	        }
 	        else
 	        {

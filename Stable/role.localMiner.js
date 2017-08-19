@@ -8,7 +8,7 @@ var localMinerCreep = {
 	/** @param {Creep} creep object **/
 	/** goal: mine source **/
 	run: function(creep) {
-	    var reUsePath = 0;
+	    var reUsePath = 2;
 		// Mine if assigned a source
 		if(creep.memory.source!=null && (creep.memory.full==false || creep.memory.full==null))
 		{

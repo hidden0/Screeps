@@ -17,14 +17,14 @@ var localTruckCreep = {
             {
                 if(Game.spawns[spawnP].room.name==creep.room.name)
                 {
-                    creep.memory.homeRoom=spawnP;
+                    creep.memory.homeRoom=Game.spawns[spawnP].room.name;
                     break;
                 }
             }
         }
-        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!=null)
+        if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode!=null)
         {
-            if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
+            if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode==false)
             {
                 // Move energy from containers first, second from spawn to towers then to storage
                 if(creep.memory.full==null || creep.memory.full==false)
@@ -63,6 +63,8 @@ var localTruckCreep = {
                     else
                     {
                         // if the spawn or extensions need energy, that takes precedence
+                        // TAKE TO CLOSEST
+                        
                         if(primaryStorage.length>0)
                         {
                             if(creep.transfer(primaryStorage[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
@@ -136,16 +138,28 @@ function getEnergy(creep)
         filter: (i) => ((i.structureType==STRUCTURE_STORAGE)
             && (i.store['energy'] > 0))
     });
+    var containers = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_CONTAINER)
+            && (i.store['energy'] > 0))
+    });
     // Now that energy storage is identified, loop through the array to find the closest energy storage
     var i=0;
     var winner_index=0;
     var lowest=null;
     var dist=0;
-    if(energyStorage.length)
+    if(energyStorage.length>0)
     {
         if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
         {
             creep.moveTo(energyStorage[0]);
+        }
+    }
+    else if(containers.length>0)
+    {
+        
+        if(creep.withdraw(containers[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        {
+            creep.moveTo(containers[0]);
         }
     }
     if(creep.carry.energy==creep.carryCapacity)

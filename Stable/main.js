@@ -88,6 +88,12 @@ module.exports.loop = function () {
     	handleTowers(aRoom);
     	// Handle the links
     	handleLinks(aRoom);
+
+    	// Debugging output?
+    	if(aRoom.memory.debug!=null)
+    	{
+    		roomStatsUI(aRoom);
+    	}
     }
 	// Handle all creeps currently alive
 	manageCreeps();
@@ -175,7 +181,9 @@ function init(aRoom)
 	{
 		open_spaces += checkOpenSpace(sources[i].pos.x, sources[i].pos.y,aRoom)
 	}
+	console.log(open_spaces);
 	localMiners = open_spaces + sources.length; // total miners we should ever have
+	console.log(open_spaces + sources.length);
 	aRoom.memory.localMinersMax=localMiners;
 
 	// Kill init script
@@ -222,6 +230,7 @@ function populationManager(aRoom)
     // Claim management
     manageExpansion(aRoom);
 
+    var roomTier=0;
     // Tier management * Trial *
     if(extensions.length>10 && links.length>1)
     {
@@ -309,9 +318,9 @@ function populationManager(aRoom)
 		{
 			builders.max=1;
 		}
-		upgraders.max=1;
+		upgraders.max=3;
 		localTrucks.max=1;
-		localMiners.max=sourcesInRoom.length;
+		localMiners.max=sourcesInRoom.length*2;
 		aRoom.memory.localMinersMax=localMiners.max;
 	}
 	// population current counts
@@ -437,6 +446,21 @@ function regulateCreeps(aRoom)
         	    break;
         }
     }
+
+    // Output stats
+    if(aRoom.memory.debug!=null)
+    {
+	    var stats = {};
+	    stats.localMiners=localMiners;
+	    stats.upgraders=upgraders;
+	    stats.builders=builders;
+	    stats.masons=expanders;
+	    stats.pilgrims=pilgrims;
+	    stats.localTrucks=localTrucks;
+	    stats.thieves=thiefs;
+	    stats.rangedKillers=rangedKillers;
+	    aRoom.memory.stats=stats;
+	}
 }
 
 // Another quick current vs max check function
@@ -581,7 +605,7 @@ function checkOpenSpace(xpos,ypos,roomName)
 	    ix = x-1; // reset
 		while (ix<(x+2))
 		{
-			var terrain = Game.map.getTerrainAt(ix,iy,roomName);
+			var terrain = Game.map.getTerrainAt(ix,iy,Game.rooms[roomName].name);
 			if(terrain!="wall")
 			{
 			    accessible++;
@@ -603,9 +627,10 @@ function spawnCreep(type,spawnPoint)
     var linkCount = spawnPoint.room.find(FIND_STRUCTURES, {
         filter: (i) => (i.structureType==STRUCTURE_LINK)
     });
+    var sourceCount = spawnPoint.room.find(FIND_SOURCES);
     var numExtensions = extCount.length;
     var numLinks = linkCount.length;
-    var creepBody = bodySelector(type,numExtensions,curEnergy,numLinks);
+    var creepBody = bodySelector(type,numExtensions,curEnergy,numLinks,sourceCount,spawnPoint.room.name);
     var roomTier = 0;
     if(spawnPoint.room.memory.roomTier!=null)
     {
@@ -720,7 +745,7 @@ function trySpawn(name,body,spawnPoint)
 }
 
 // This is the function that handles all creep body generation
-function bodySelector(type,numExtensions,curEnergy,numLinks)
+function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameBody)
 {
 	/* Body automation - given the type, number of extensions, and current energy
 	it can be calculated how much the cost of a body is and what parts should take precedence
@@ -729,23 +754,30 @@ function bodySelector(type,numExtensions,curEnergy,numLinks)
 	var potentialEnergy = (numExtensions * 50) + 300; // this is the maximum creep building potential we have at the moment
 	var creepTier = 0;
 	var body;
-
-	if(potentialEnergy>320)
+	var stats = {};
+	if(potentialEnergy>400 && curEnergy>400)
 	{
 		creepTier = 1; // first increase in tier, we can get more done at this stage
 	}
-	if(potentialEnergy>600)
+	if(potentialEnergy>600 && numSources.length>1 && curEnergy>600)
 	{
 		creepTier = 2; // 7 Extensions - we can have a max potential of 650 energy
 	}
-	if(potentialEnergy>750)
+	if(potentialEnergy>750 && numSources.length>1 && curEnergy>750)
 	{
 		creepTier = 3; // 10 Extensions - we can have a max potential of 800 energy
 	}
-	if(potentialEnergy>750 && numLinks>1)
+	if(potentialEnergy>750 && numLinks>1 && numSources.length>1 && curEnergy>750)
 	{
 		creepTier = 4; // 10 Extensions - we can have a max potential of 800 energy, and there are base links. Time to beef up.
 	}
+	//console.log("Creep tier " + creepTier);
+	stats.creepTier=creepTier;
+	stats.curEnergy=curEnergy;
+	stats.curSources=numSources;
+	stats.numLinks=numLinks;
+	stats.potentialEn=potentialEnergy;
+	Game.rooms[roomNameBody].memory.spawnStats=stats;
 	// Tiering system per type
 	switch(type)
 	{
@@ -766,12 +798,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks)
 					break;
 				// Long haul miner, drains sources quickly
 				case 3:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
 					break;
 				// This miner is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -911,7 +943,56 @@ function bodySelector(type,numExtensions,curEnergy,numLinks)
 			}
 			break;
 	}
+	//console.log(costCalculator(body));
 	return body;
+}
+// Calculates cost of creep spawn
+function costCalculator(body)
+{
+	var theCost = 0;
+	var bodyCost = {};
+
+	bodyCost.work = 100;
+	bodyCost.move = 50;
+	bodyCost.carry = 50;
+	bodyCost.attack = 80;
+	bodyCost.rangedAttack = 150;
+	bodyCost.heal = 250;
+	bodyCost.claim = 600;
+	bodyCost.tough = 10;
+
+	for(var i=0; i<body.length; i++)
+	{
+		switch(body[i])
+		{
+			case WORK:
+				theCost+=bodyCost.work;
+				break;
+			case MOVE:
+				theCost+=bodyCost.move;
+				break;
+			case CARRY:
+				theCost+=bodyCost.carry;
+				break;
+			case ATTACK:
+				theCost+=bodyCost.attack;
+				break;
+			case RANGED_ATTACK:
+				theCost+=bodyCost.rangedAttack;
+				break;
+			case HEAL:
+				theCost+=bodyCost.heal;
+				break;
+			case CLAIM:
+				theCost+=bodyCost.claim;
+				break;
+			case TOUGH:
+				theCost+=bodyCost.tough;
+				break;
+		}
+	}
+
+	return theCost;
 }
 // Compares open space around a source, number of miners already on the source, and finds the next open spot
 // Accounts for open spaces + 1
@@ -923,15 +1004,16 @@ function setLocalMinerSource(spawnPoint)
 	var creeps_mining = 0;
 	var open_spaces = 0;
 	var sourceId = null;
-
+	console.log("Sources: " + sources.length);
 
 	for(var i = 0; i<sources.length; i++)
 	{
 		// Auto add +1 to a source, always have someone in transit
 		source_spaces[i] = checkOpenSpace(sources[i].pos.x, sources[i].pos.y,spawnPoint.room.name) + 1; 
+		console.log(source_spaces[i]);
 		open_spaces += source_spaces[i];
 	}
-
+	console.log("Open spaces: " + open_spaces);
 	// For each source
 	for (var x = 0; x<sources.length; x++)
 	{
@@ -959,4 +1041,68 @@ function setLocalMinerSource(spawnPoint)
 		}
 	}
 	return sourceId;
+}
+
+// Prints room stats to the screen for easy debugging
+function roomStatsUI(aRoom)
+{
+	// For each room containing an "output" flag...
+	var outputFlag = null;
+    for (var flagName in Game.flags)
+    {
+        if(flagName.includes("output") && Game.flags[flagName].room.name==aRoom.name)
+        {
+            aRoom.memory.debugOutput=flagName;
+            break;
+        }
+    }
+
+    if(aRoom.memory.debugOutput!=null)
+    {
+    	var outputFlagTarget = Game.flags[aRoom.memory.debugOutput];
+    	if(outputFlagTarget!=null)
+    	{
+	        // Draw the debug window
+	        debugWindow(outputFlagTarget.pos.x,outputFlagTarget.pos.y,aRoom.name);
+    	}
+    }
+}
+
+// Pass output flag position coordinates to this function, and print debug output to the room UI
+function debugWindow(originX,originY,roomName)
+{
+	// Stats
+	var stats = {};
+	var creepTier;
+	var spawnStats = {};
+	if(Game.rooms[roomName].memory.stats!=null)
+	{
+		stats = Game.rooms[roomName].memory.stats;
+		spawnStats = Game.rooms[roomName].memory.spawnStats;
+	}
+	// Shapes
+	new RoomVisual(roomName).rect(originX-5, originY-3, 10, 5, {fill: '#fff', opacity: '1', stroke: '#f00'});
+
+	// Text
+	var roomEnergy = Game.rooms[roomName].energyAvailable;
+	var minersTxt = "Miners Max: " + stats.localMiners.max + "\t\tMiners now: " + stats.localMiners.current;
+	new RoomVisual(roomName).text(minersTxt, originX-1.5, originY-2.5, {color: 'green', font: 0.5});
+	var upgradersTxt = "Upgraders Max: " + stats.upgraders.max + "\t\tUpgraders now: " + stats.upgraders.current;
+	new RoomVisual(roomName).text(upgradersTxt, originX-0.63, originY-2.0, {color: 'green', font: 0.5});
+	var buildersTxt = "Builders Max: " + stats.builders.max + "\t\tBuilders now: " + stats.builders.current;
+	new RoomVisual(roomName).text(buildersTxt, originX-1.195, originY-1.5, {color: 'green', font: 0.5});
+	var trucksTxt = "Trucks Max: " + stats.localTrucks.max + "\t\tTrucks now: " + stats.localTrucks.current;
+	new RoomVisual(roomName).text(trucksTxt, originX-1.5, originY-1, {color: 'green', font: 0.5});
+
+	var energyStats = "Energy available in room: " + roomEnergy;
+	new RoomVisual(roomName).text(energyStats, originX-1.5, originY, {color: 'blue', font: 0.5});
+
+	var creepTierStats = "Room creep tier: " + spawnStats.creepTier;
+	new RoomVisual(roomName).text(creepTierStats, originX-2.88, originY+0.5, {color: 'blue', font: 0.5});
+
+	var curEnergyTxt = "LastCurEnergy: " + spawnStats.curEnergy;
+	new RoomVisual(roomName).text(curEnergyTxt, originX, originY+1, {color: 'blue', font: 0.5});
+
+	var linksSourcesTxt = "Sources: " + spawnStats.curSources.length + " Links: " + spawnStats.numLinks + " Potential: " + spawnStats.potentialEn;
+	new RoomVisual(roomName).text(linksSourcesTxt, originX, originY+1.5, {color: 'blue', font: 0.5});
 }

@@ -21,7 +21,7 @@ var roleBuilder = {
             {
                 if(Game.spawns[spawnP].room.name==creep.room.name)
                 {
-                    creep.memory.homeRoom=spawnP;
+                    creep.memory.homeRoom=Game.spawns[spawnP].room.name;
                     break;
                 }
             }
@@ -54,7 +54,7 @@ function buildSites(creep)
     var targetSite;
     var constructionSites = null; // Assume no sites every tick
     var building = null;
-    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==true)
+    if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode==true)
     {
         creep.memory.action='idle';
         return;
@@ -145,9 +145,9 @@ function goIdle(myCreep)
 // setState(creep): Figure out what state the creep should be in now.
 function setState(creep)
 {
-    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!=null)
+    if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode!=null)
     {
-        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
+        if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode==false)
         {
             var sites = creep.room.find(FIND_CONSTRUCTION_SITES);
             // Is action set?

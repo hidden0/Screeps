@@ -17,7 +17,7 @@ var roleController = {
             {
                 if(Game.spawns[spawnP].room.name==creep.room.name)
                 {
-                    creep.memory.homeRoom=spawnP;
+                    creep.memory.homeRoom=Game.spawns[spawnP].room.name;
                     break;
                 }
             }
@@ -43,9 +43,9 @@ var roleController = {
 // getPoints(creep): Go upgrade the controller!
 function getPoints(creep) {
     // Upgrade the controller
-    if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode!=null)
+    if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode!=null)
     {
-        if(Game.spawns[creep.memory.homeRoom].memory.energyReserveMode==false)
+        if(Game.rooms[creep.memory.homeRoom].memory.energyReserveMode==false)
         {
             // Do we have energy for the creep?
             if(creep.carry.energy < creep.carryCapacity && creep.memory.points==false)
@@ -99,6 +99,8 @@ function goIdle(myCreep)
             }
         }
     }
+    // Finally, make sure to update state
+    setState(myCreep);
 }
 
 // setState(creep): Figure out what state the creep should be in now.
@@ -131,8 +133,7 @@ function getEnergy(creep)
             && (i.store['energy'] > 0))
     });
     var secondaryLink = creep.room.find(FIND_STRUCTURES, {
-        filter: (i) => ((i.structureType==STRUCTURE_LINK)
-            && (i.energy > 0))
+        filter: (i) => ((i.structureType==STRUCTURE_LINK))
     });
     var energyStorage = creep.room.find(FIND_STRUCTURES, {
         filter: (i) => ((i.structureType==STRUCTURE_SPAWN || i.structureType==STRUCTURE_STORAGE)
@@ -145,7 +146,7 @@ function getEnergy(creep)
     var dist=0;
 
     // A secondary link would have been placed opportunely. Use it as the highest priority
-    if(secondaryLink.length>1)
+    if(secondaryLink.length>1 && secondaryLink[1].energy>0)
     {
         if(creep.withdraw(secondaryLink[1],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
         {

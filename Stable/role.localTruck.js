@@ -64,11 +64,31 @@ var localTruckCreep = {
                     {
                         // if the spawn or extensions need energy, that takes precedence
                         // TAKE TO CLOSEST
-                        
+                        // Now that energy storage is identified, loop through the array to find the closest energy storage
+                        var i=0;
+                        var winner_index=0;
+                        var lowest=null;
+                        var dist=0;
+
+                        while(i<primaryStorage.length)
+                        {
+                            dist = mapDistance(creep,primaryStorage[i]);
+                            //console.log("Container["+i+"] distance: " + dist);
+                            if(lowest==null)
+                            {
+                                lowest=dist;
+                            }
+                            else if(dist<lowest)
+                            {
+                                lowest=dist;
+                                winner_index=i;
+                            }
+                            i++;
+                        }
                         if(primaryStorage.length>0)
                         {
-                            if(creep.transfer(primaryStorage[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                                creep.moveTo(primaryStorage[0]);
+                            if(creep.transfer(primaryStorage[winner_index], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                                creep.moveTo(primaryStorage[winner_index]);
                             }
                         }
                         // Finally, fill that base link with energy

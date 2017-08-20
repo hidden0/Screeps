@@ -179,7 +179,7 @@ function init(aRoom)
 	roomTier = 0;
 	for(var i = 0; i<sources.length; i++)
 	{
-		open_spaces += checkOpenSpace(sources[i].pos.x, sources[i].pos.y,aRoom)
+		open_spaces += checkOpenSpace(sources[i].pos.x, sources[i].pos.y,aRoom.name)
 	}
 	console.log(open_spaces);
 	localMiners = open_spaces + sources.length; // total miners we should ever have
@@ -253,7 +253,6 @@ function populationManager(aRoom)
 	    {
 	    	rangedKillers.max=0;
 	    }
-
 	    switch(aRoom.controller.level)
 	    {
 	    	case 1:
@@ -322,7 +321,31 @@ function populationManager(aRoom)
 		localTrucks.max=1;
 		localMiners.max=sourcesInRoom.length*2;
 		aRoom.memory.localMinersMax=localMiners.max;
+		// For each creep mining, spread them out
+		// 2 per source
+		/* This broke things :(
+		var hit=0;
+		for(var y=0; y<(sourcesInRoom.length*2); y++)
+		{
+			for(var aMiner in Game.creeps)
+			{
+				var aMiningCreep = Game.creeps[aMiner];
+				if(aMiningCreep.memory.balanced==null)
+				{
+					aMiningCreep.memory.source=sourcesInRoom[y].id;
+					aMiningCreep.memory.balanced=true;
+					hit++;
+				}
+				if(hit==2)
+				{
+					hit=0;
+					break;
+				}
+			}
+		}
+		*/
 	}
+	roomTier=0;
 	// population current counts
 	// checking room name for current room of spawn being calculated
 	// some creeps are global creeps and do not get this check
@@ -581,7 +604,7 @@ function cleanDeadCreeps()
 }
 
 // Map anything that doesn't match "wall" terrain type around given target
-function checkOpenSpace(xpos,ypos,roomName)
+function checkOpenSpace(xpos,ypos,roomName1)
 {
 	// Return number of tiles in array around x/y that are accessible
 	// objPos["x"] and objPos["y"] are the things we like here
@@ -605,7 +628,7 @@ function checkOpenSpace(xpos,ypos,roomName)
 	    ix = x-1; // reset
 		while (ix<(x+2))
 		{
-			var terrain = Game.map.getTerrainAt(ix,iy,Game.rooms[roomName].name);
+			var terrain = Game.map.getTerrainAt(ix,iy,Game.rooms[roomName1]);
 			if(terrain!="wall")
 			{
 			    accessible++;
@@ -890,7 +913,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// This builder is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1010,10 +1033,8 @@ function setLocalMinerSource(spawnPoint)
 	{
 		// Auto add +1 to a source, always have someone in transit
 		source_spaces[i] = checkOpenSpace(sources[i].pos.x, sources[i].pos.y,spawnPoint.room.name) + 1; 
-		console.log(source_spaces[i]);
 		open_spaces += source_spaces[i];
 	}
-	console.log("Open spaces: " + open_spaces);
 	// For each source
 	for (var x = 0; x<sources.length; x++)
 	{

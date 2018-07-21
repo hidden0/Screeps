@@ -33,7 +33,8 @@ no need to switch to a new source
 ***/
 
 // Constant
-const HOMEBASE = 'W18S11';
+const HOMEBASE = 'W18S15';
+const USERNAME = 'hidden0';
 
 // Creep Roles
 var localMiner 		= require("role.localMiner");
@@ -58,7 +59,9 @@ var pilgrims;
 var localTrucks;
 var thiefs;
 var rangedKillers;
-
+var spawnList;
+var potentialEnergy;
+var creepTier;
 // - Creep body types
 /* Todo 
 This needs a major over haul. Over time, this should be scalable as such:
@@ -73,31 +76,252 @@ var roomTier;
 // Primary game loop
 module.exports.loop = function () {
     // Switching to a room based play - for each room:
+
+    if(spawnList==null)
+    {
+    	spawnList = new Array();
+    }
     for (var theRoom in Game.rooms)
     {
     	var aRoom = Game.rooms[theRoom];
-    	// First time init, only runs *once*
-    	if(aRoom.memory.init==null || aRoom.memory.init==false)
+    	if(aRoom.controller!=null)
     	{
-    		init(aRoom);
+        	if(aRoom.controller.owner!=null)
+        	{
+        		if(aRoom.controller.owner.username==USERNAME)
+        		{
+        			// First time init, only runs *once*
+    		    	if(aRoom.memory.init==null || aRoom.memory.init==false)
+    		    	{
+    		    		init(aRoom);
+    		    	}
+    		    	// Build stuff?
+    		    	handleConstruction(aRoom);
+    		    	// Population management - do we need to spawn a creep?
+    			    populationManager(aRoom);
+    		    	// For the room, handle towers/links
+    		    	handleTowers(aRoom);
+    		    	// Handle the links
+    		    	handleLinks(aRoom);
+    		        // Handle reserved rooms and remote mining ops
+    		        var foundReserved = false;
+    		        if(aRoom.controller!=null)
+    		        {
+    		            if(aRoom.controller.reservation!=null)
+    		            {
+    		    	        if(aRoom.controller.reservation.username==USERNAME)
+    		    	        {
+    		    	        	foundReserved=true;
+    		    	            handleReservedRooms(aRoom);
+    		    	        }
+    		            }
+    		        }
+    		    	// Debugging output?
+    		    	if(aRoom.memory.debug!=null)
+    		    	{
+    		    		roomStatsUI(aRoom);
+    		    	}
+        		}
+        	}
+        	else
+        	{
+        		continue;
+        	}
     	}
-    	// Population management - do we need to spawn a creep?
-	    populationManager(aRoom);
-    	// For the room, handle towers/links
-    	// Calculate what towers should do
-    	handleTowers(aRoom);
-    	// Handle the links
-    	handleLinks(aRoom);
-
-    	// Debugging output?
-    	if(aRoom.memory.debug!=null)
-    	{
-    		roomStatsUI(aRoom);
-    	}
+    }
+    if(!foundReserved)
+    {
+    	Game.rooms[HOMEBASE].memory.reservedRooms=null;
     }
 	// Handle all creeps currently alive
 	manageCreeps();
 };
+
+// Automate construction if it makes sense to
+function handleConstruction(aRoom)
+{
+	var constructCoolDown = 5000;
+	var conSites = 0;
+	var containerEnergy = 0;
+    var storageBoxEnergy = 0;
+    var buildX = 0;
+    var buildY = 0;
+    var origin = null;
+
+    var containers = aRoom.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_CONTAINER))
+    });
+    var storageBox = aRoom.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_STORAGE))
+    });
+    var extensions = aRoom.find(FIND_STRUCTURES, {
+	    filter: (i) => (i.structureType==STRUCTURE_EXTENSION)
+	});
+	var spawns = aRoom.find(FIND_STRUCTURES, {
+	    filter: (i) => (i.structureType==STRUCTURE_SPAWN)
+	});
+	if(!spawns.length)
+	{
+		return;
+	}
+	var sourcesInRoom = aRoom.find(FIND_SOURCES);
+	var constructionSitesTotal = aRoom.find(FIND_CONSTRUCTION_SITES);
+    for (var i=0; i<containers.length; i++)
+    {
+    	containerEnergy+=containers[i].store['energy'];
+    }
+    if(storageBox.length)
+    {
+    	storageBoxEnergy = storageBox[0].store['energy'];
+    }
+    var totalEnergy = aRoom.energyAvailable + containerEnergy + storageBoxEnergy;
+
+    var maxStructs = {
+    	extensions:{ current: extensions.length, max: 0 },
+    	containers:{ current: containers.length, max: 5 },
+    	storage: { current: storageBox.length, max: 1 },
+    	spawn: { current: spawns.length, max: 0}
+    };
+
+    switch(aRoom.controller.level)
+    {
+    	case 1:
+    		maxStructs.extensions.max=0;
+    		maxStructs.spawn.max=1;
+    		break;
+    	case 2:
+    		maxStructs.extensions.max=5;
+    		maxStructs.spawn.max=1;
+    		break;
+    	case 3:
+    		maxStructs.extensions.max=10;
+    		maxStructs.spawn.max=1;
+    		break;
+    	case 4:
+    		maxStructs.extensions.max=20;
+    		maxStructs.spawn.max=1;
+    		break;
+    	case 5:
+    		maxStructs.extensions.max=30;
+    		maxStructs.spawn.max=1;
+    		break;
+    	case 6:
+    		maxStructs.extensions.max=40;
+    		maxStructs.spawn.max=1;
+    		break;
+    	case 7:
+    		maxStructs.extensions.max=50;
+    		maxStructs.spawn.max=2;
+    		break;
+    	case 8:
+    		maxStructs.extensions.max=60;
+    		maxStructs.spawn.max=3;
+    		break;
+    }
+    // Set spawn 1 origin
+    origin=spawns[0];
+    targetLoc = { x: 0, y: 0 };
+    if(aRoom.memory.coolDown!=null)
+    {
+    	if(aRoom.memory.coolDown>constructCoolDown)
+    	{
+    		aRoom.memory.building=false;
+    		aRoom.memory.coolDown=0;
+    	}
+    	else
+    	{
+    		aRoom.memory.building=true;
+    		aRoom.memory.coolDown++;
+    	}
+    }
+	else
+	{
+		aRoom.memory.building=false;
+	}
+    if(!aRoom.memory.building)
+    {
+	    if(maxStructs.containers.current==0)
+	    {
+	    	// Build the first container
+	    	targetLoc.x=origin.pos.x;
+	    	targetLoc.y=origin.pos.y+2;
+	    	aRoom.createConstructionSite(targetLoc.x,targetLoc.y,STRUCTURE_CONTAINER);
+	    	aRoom.memory.building=true;
+	    }
+	    else
+	    {
+	    	// Build one extension at a time
+	    	if(maxStructs.extensions.current<maxStructs.extensions.max && containers[0].store['energy']>1500)
+	    	{
+	    		if(maxStructs.extensions.current==0)
+	    		{
+	    			targetLoc.x=origin.pos.x-5;
+	    			targetLoc.y=origin.pos.y-1;
+	    		}
+	    		else if(maxStructs.extensions.current>=1 && maxStructs.extensions.current<6)
+	    		{
+	    			var lastExt = extensions[extensions.length-1];
+	    			targetLoc.x=lastExt.pos.x+2;
+	    			targetLoc.y=lastExt.pos.y;
+	    		}
+	    		else if(maxStructs.extensions.current==6)
+	    		{
+	    			var firstExt = extensions[0];
+	    			targetLoc.x=firstExt.pos.x;
+	    			targetLoc.y=firstExt.pos.y+4;
+	    		}
+	    		else if(maxStructs.extensions.current>=7 && maxStructs.extensions.current<11)
+	    		{
+	    			var lastExt = extensions[extensions.length];
+	    			targetLoc.x=lastExt.pos.x+2;
+	    			targetLoc.y=lastExt.pos.y;
+	    		}
+	    		aRoom.createConstructionSite(targetLoc.x,targetLoc.y,STRUCTURE_EXTENSION);
+	    	}
+	    }
+	    if(aRoom.memory.coolDown==null)
+	    {
+	    	aRoom.memory.coolDown=0;
+	    }
+	}
+}
+// Handle remote reserved rooms and mining ops
+function handleReservedRooms(aRoom)
+{
+	// Add this to the list of remote rooms for home base to track
+	var remoteRoom = aRoom.name;
+	var homeBase = Game.rooms[HOMEBASE];
+	var roomList = null;
+	// Is it part of the list already?
+	if(homeBase.memory.reservedRooms==null)
+	{
+		homeBase.memory.reservedRooms=remoteRoom;
+	}
+	else
+	{
+		// Check the whole string to see if the room is in the list already
+		roomList = homeBase.memory.reservedRooms.split(",");
+		if(roomList.length)
+		{
+			var i = 0;
+			var found = false;
+			while(i<roomList.length)
+			{
+				if(roomList[i]==remoteRoom)
+				{
+					found=true;
+					break;
+				}
+				i++;
+			}
+		}
+		if(!found)
+		{
+			homeBase.memory.reservedRooms+="," + remoteRoom;
+		}
+	}
+	// At this point we know all reserved rooms and that is all this function needs to do.
+}
 
 // Handles Towers
 function handleTowers(aRoom)
@@ -106,7 +330,7 @@ function handleTowers(aRoom)
 	var towers = aRoom.find(
             FIND_MY_STRUCTURES, {filter: {structureType: STRUCTURE_TOWER}});
 	var tRepairTargets = aRoom.find(FIND_STRUCTURES, {
-                filter: (i) => (i.hits < (i.hitsMax) && (i.structureType!=STRUCTURE_WALL && i.structureType!=STRUCTURE_RAMPART))
+                filter: (i) => (i.hits < (i.hitsMax))
             });
 	var hostiles = aRoom.find(FIND_HOSTILE_CREEPS);
 
@@ -125,9 +349,23 @@ function handleTowers(aRoom)
         var i=0;
         while(i<towers.length)
         {
-            if(towers[i].energy>200)
+            if(towers[i].energy>200 && tRepairTargets.length)
             {
-                towers[i].repair(tRepairTargets[0]);
+                var threshold = tRepairTargets[0].hitsMax;
+                // Get lowest health structure
+                var weakestStructure = findWeakest(tRepairTargets); // returns an integer representing the array index of weakest structure
+                if(tRepairTargets[weakestStructure].structureType==STRUCTURE_RAMPART || tRepairTargets[weakestStructure].structureType==STRUCTURE_WALL)
+                {
+                    threshold = 2000;
+                    if(towers[i].room.memory.wallStr!=null)
+                    {
+                        threshold=towers[i].room.memory.wallStr;   
+                    }
+                }
+                if(tRepairTargets[weakestStructure].hits<threshold)
+                {
+                    towers[i].repair(tRepairTargets[weakestStructure]);
+                }
             }
             i++;
         }
@@ -148,24 +386,33 @@ function handleLinks(aRoom)
     // Do we have a base link?
     if(Links.length>0)
     {
-    	var baseEnergy = Links[0].energy;
-    	// Do we have more links to work with?
-    	if(Links.length>1)
+    	var base = null;
+    	// Find the base link. Identified by aRoom.memory.base=true
+    	if(aRoom.memory.base!=null)
     	{
-    		// Do we have energy to impart to them?
-    		var i = 1;
-    		var division = Math.round(baseEnergy/(Links.length-1));
-    		while(i<=(Links.length-1))
-    		{
-    		    if(LinkTargets.length)
-    		    {
-    		        if(Links[i].energy<Links[i].energyCapacity)
-    		        {
-    			        Links[0].transferEnergy(Links[i]);
-    		        }
-    		    }
-    			i++;
-    		}
+    		base = Game.getObjectById(aRoom.memory.base);
+    	}
+    	if(base!=null)
+    	{
+	    	var baseEnergy = base.energy;
+	    	// Do we have more links to work with?
+	    	if(Links.length>0)
+	    	{
+	    		// Do we have energy to impart to them?
+	    		var i = 0;
+	    		var division = Math.round(baseEnergy/(Links.length-1));
+	    		while(i<Links.length)
+	    		{
+	    		    if(LinkTargets.length && Links[i].id!=base.id)
+	    		    {
+	    		        if(Links[i].energy<Links[i].energyCapacity)
+	    		        {
+	    			        base.transferEnergy(Links[i]);
+	    		        }
+	    		    }
+	    			i++;
+	    		}
+	    	}
     	}
     } 
 }
@@ -176,14 +423,39 @@ function init(aRoom)
 	// Max local miners defined by open_spaces + sources_in_room = total_local_miners
 	var sources = aRoom.find(FIND_SOURCES);
 	var open_spaces = 0;
-	roomTier = 0;
+	var pad = 3;
+	if(aRoom.memory.tier!=null)
+	{
+		switch(true)
+		{
+			case (aRoom.memory.tier==0):
+				pad=2;
+				break;
+			case (aRoom.memory.tier==1):
+				pad=2;
+				break;
+			case (aRoom.memory.tier==2):
+				pad=2;
+				break;
+			case (aRoom.memory.tier>=3):
+				pad=1;
+				break;
+		}
+	}
+	var tier = 0;
+	if(aRoom.memory.tier!=null)
+	{
+	    tier = aRoom.memory.tier;
+	}
 	for(var i = 0; i<sources.length; i++)
 	{
 		open_spaces += checkOpenSpace(sources[i].pos.x, sources[i].pos.y,aRoom.name)
 	}
-	console.log(open_spaces);
-	localMiners = open_spaces + sources.length; // total miners we should ever have
-	console.log(open_spaces + sources.length);
+	localMiners = open_spaces + sources.length + pad; // total miners we should ever have
+	if(localMiners>7)
+	{
+	    localMiners=7;
+	}
 	aRoom.memory.localMinersMax=localMiners;
 
 	// Kill init script
@@ -226,130 +498,256 @@ function populationManager(aRoom)
     localTrucks			= {current:0, max:0};
     thiefs			    = {current:0, max:1};
     rangedKillers		= {current:0, max:0};
+    // population current counts
 
-    // Claim management
-    manageExpansion(aRoom);
-
-    var roomTier=0;
-    // Tier management * Trial *
-    if(extensions.length>10 && links.length>1)
+    // Check new miner maxims
+    potentialEnergy = (extensions.length * 50) + 300; // this is the maximum creep building potential we have at the moment
+    if(aRoom.memory.tier!=null)
     {
-    	roomTier=2;
-    	aRoom.memory.roomTier=2;
+    	creepTier=aRoom.memory.tier;
     }
-    if(roomTier<2)
+    else
     {
-    	// This is the old default behavior up until a room "crosses over"
-	    // Set maximums
-	    if(aRoom.memory.localMinersMax!=null)
-	    {
-	    	localMiners.max=aRoom.memory.localMinersMax;
-	    }
-	    if(aRoom.memory.rangedKillersMax!=null)
-	    {
-	    	rangedKillers.max=aRoom.memory.rangedKillersMax;
-	    }
-	    else
-	    {
-	    	rangedKillers.max=0;
-	    }
-	    switch(aRoom.controller.level)
-	    {
-	    	case 1:
-	    		upgraders.max=2;
-	    		builders.max=3;
-	    		break;
-	    	case 2:
-	    		upgraders.max=3;
-	    		builders.max=3;
-	    		break;
-	    	case 3:
-	    		upgraders.max=3;
-	    		builders.max=3;
-	    		//upgraders2.max=3;
-	    		break;
-	    	case 4:
-	    		upgraders.max=3;
-	    		builders.max=3;
-	    		break;
-	    	case 5:
-	    		upgraders.max=4;
-	    		builders.max=3;
-	    		break;
-	    	default:
-	    		upgraders.max=2;
-	    		builders.max=3;
-	    		break;
-	    }
-	    // truck management
-	    // if there are towers and containers, it's time to have a truck
-	    if(towers.length>0 && (containers.length>0 || storageBox.length>0))
-	    {
-	    	localTrucks.max=1;
-	    	if(extensions>10)
-	    	{
-	    		// one more truck for handling this
-	    		localTrucks.max=2;
-	    	}
-	    }
-
-	    // mason management - are ther ramparts or walls to maintain?
-	    if(defenses.length>0)
-	    {
-	    	masons.max=(Math.round(defenses.length/5));
-	    	if(masons.max==0 && defenses.length>0)
-	    	{
-	    		masons.max=1;
-	    	}
-	    }
-
-	    // Builder culling
-	    if(!constructionSitesTotal.length)
-	    {
-	        builders.max=0;
-	    }
-	}
-	// Otherwise, we're in a mode where we can just build super creeps
-	else
+    	creepTier=0;
+    }
+    if(aRoom.memory.tierHold==null && aRoom.memory.tierTickCount==null)
+    {
+    	aRoom.memory.tierHold=75; // ticks to hold creep tier
+    	aRoom.memory.tierTickCount=0; // current tick
+    }
+	if(extensions.length>=5 && extensions.length <=8 && aRoom.memory.tierTickCount>aRoom.memory.tierHold)
 	{
-		// Are there any construction sites?
-		if(constructionSitesTotal.length>0)
+		creepTier = 1; // first increase in tier, we can get more done at this stage
+		if(aRoom.memory.tier!=null)
 		{
-			builders.max=1;
+			aRoom.memory.init=false;
 		}
-		upgraders.max=3;
-		localTrucks.max=1;
-		localMiners.max=sourcesInRoom.length*2;
-		aRoom.memory.localMinersMax=localMiners.max;
-		// For each creep mining, spread them out
-		// 2 per source
-		/* This broke things :(
-		var hit=0;
-		for(var y=0; y<(sourcesInRoom.length*2); y++)
-		{
-			for(var aMiner in Game.creeps)
-			{
-				var aMiningCreep = Game.creeps[aMiner];
-				if(aMiningCreep.memory.balanced==null)
-				{
-					aMiningCreep.memory.source=sourcesInRoom[y].id;
-					aMiningCreep.memory.balanced=true;
-					hit++;
-				}
-				if(hit==2)
-				{
-					hit=0;
-					break;
-				}
-			}
-		}
-		*/
+		aRoom.memory.tierTickCount=0;
 	}
-	roomTier=0;
-	// population current counts
+	else if(extensions.length>=9 && extensions.length <=14 && aRoom.memory.tierTickCount>aRoom.memory.tierHold)
+	{
+		creepTier = 2; // 7 Extensions - we can have a max potential of 650 energy
+		// bonus round
+		if(!constructionSitesTotal.length && extensions.length >=12)
+		{
+			creepTier=3;
+		}
+		if(aRoom.memory.tier!=null)
+		{
+			aRoom.memory.init=false;
+		}
+		aRoom.memory.tierTickCount=0;
+	}
+	else if(extensions.length>=15 && extensions.length<=19 && aRoom.memory.tierTickCount>aRoom.memory.tierHold)
+	{
+		creepTier = 3; // 10 Extensions - we can have a max potential of 800 energy
+		if(aRoom.memory.tier!=null)
+		{
+			aRoom.memory.init=false;
+		}
+		aRoom.memory.tierTickCount=0;
+	}
+	else if(extensions.length>=20 && links.length>1 && sourcesInRoom.length>1 && aRoom.energyAvailable>1200 && aRoom.memory.tierTickCount>aRoom.memory.tierHold)
+	{
+		creepTier = 4; // 10 Extensions - we can have a max potential of 800 energy, and there are base links. Time to beef up.
+		aRoom.memory.localMinersMax=2; // one per source
+		aRoom.memory.tierTickCount=0;
+	}
+	else if(extensions.length>=20)
+	{
+		creepTier = 3; // 10 Extensions - we can have a max potential of 800 energy
+		if(aRoom.memory.tier!=null)
+		{
+			aRoom.memory.init=false;
+		}
+		aRoom.memory.tierTickCount=0;
+	}
+	aRoom.memory.tier=creepTier;
+	// Increment tick count
+	aRoom.memory.tierTickCount++;
 	// checking room name for current room of spawn being calculated
 	// some creeps are global creeps and do not get this check
 	regulateCreeps(aRoom);
+    // Claim management
+    var claimFlag = null;
+    if(aRoom.name==HOMEBASE)
+    {
+	    for (var flagName in Game.flags)
+	    {
+	        if(flagName.includes("claim") || flagName.includes("reserve"))
+	        {
+	            claimFlag=flagName;
+	            aRoom.memory.targetRoom=Game.flags[claimFlag].pos.roomName;
+	            if(flagName.includes("reserve"))
+	            {
+	            	aRoom.memory.targetAction="reserve";
+	            }
+	            else if(flagName.includes("claim"))
+	            {
+	            	aRoom.memory.targetAction="claim";
+	            }
+	            break;
+	        }
+	        else
+            {
+            	aRoom.memory.targetAction=null;
+            	aRoom.memory.targetRoom=null;
+            }
+	    }
+
+	    if(aRoom.memory.targetRoom!=null)
+	    {
+	    	var claimTargetRoom = Game.rooms[aRoom.memory.targetRoom];
+	    	if(claimTargetRoom!=null)
+	    	{
+		        var spawnsInRoom = Game.rooms[aRoom.memory.targetRoom].find(FIND_STRUCTURES, {
+		                filter: (i) => (i.structureType==STRUCTURE_SPAWN && i.owner.username==USERNAME)
+		            });
+		        var sitesInRoom = Game.rooms[aRoom.memory.targetRoom].find(FIND_CONSTRUCTION_SITES);
+		        if(spawnsInRoom.length>0 && sitesInRoom.length<1)
+		        {
+		            pilgrims.max=0;
+		            aRoom.memory.targetRoom=null;
+		            Game.flags[claimFlag].remove();
+		        }
+		        else if(Game.rooms[aRoom.memory.targetRoom].controller.owner==null)
+		        {
+		            expanders.max=1;
+		        }
+		        else if(Game.rooms[aRoom.memory.targetRoom].controller.owner.username!=null)
+		        {
+		            if(Game.rooms[aRoom.memory.targetRoom].controller.owner.username!=USERNAME)
+		            {
+		                expanders.max=1;
+		            }
+		            else
+		            {
+		                pilgrims.max=2;
+		            }
+		        }
+		        else
+		        {
+		            pilgrims.max=2;
+		        }
+	    	}
+	    	else
+	        {
+	            // We know nothing about the room...
+	            expanders.max=1;
+	        }
+	    }
+	    else
+	    {
+	        expanders.max=0;
+	        pilgrims.max=0;
+	    }
+	}
+
+    // Set maximums
+    if(aRoom.memory.localMinersMax!=null)
+    {
+    	localMiners.max=aRoom.memory.localMinersMax;
+    }
+    if(aRoom.memory.localMinersMaxOverride!=null)
+    {
+        localMiners.max=aRoom.memory.localMinersMaxOverride;
+    }
+    if(aRoom.memory.rangedKillersMax!=null)
+    {
+    	rangedKillers.max=aRoom.memory.rangedKillersMax;
+    }
+    else
+    {
+    	rangedKillers.max=0;
+    }
+    
+    var containerEnergy = 0;
+    var storageBoxEnergy = 0;
+    var extEnergy = 0;
+    for (var i=0; i<containers.length; i++)
+    {
+    	containerEnergy+=containers[i].store['energy'];
+    }
+    for (var i=0; i<extensions.length; i++)
+    {
+    	extEnergy+=extensions[i].energy;
+    }
+    if(storageBox.length)
+    {
+    	storageBoxEnergy = storageBox[0].store['energy'];
+    }
+    var totalEnergy = aRoom.energyAvailable + containerEnergy + storageBoxEnergy;
+    var totalEnergyU = totalEnergy - extEnergy;
+    // Upgraders maxim set by available energy to dump into points
+    if(totalEnergyU>=500 && totalEnergyU<=1500)
+    {
+    	upgraders.max=1;
+    }
+    else if(totalEnergyU>=1501 && totalEnergyU<=4000)
+    {
+    	upgraders.max=2;
+    }
+    else if(totalEnergyU>=4001 && totalEnergyU<=5500)
+    {
+    	upgraders.max=3;
+    }
+    else if(totalEnergyU>=5501 && totalEnergyU<=10000)
+    {
+    	upgraders.max=4;
+    }
+    else if(totalEnergyU>=10001)
+    {
+    	upgraders.max=4;
+    }
+    else if(aRoom.controller.level==1)
+    {
+    	upgraders.max=1;
+    }
+    else
+    {
+    	upgraders.max=0;
+    }
+
+    // Builder maxim set by same as upgraders with different ranges
+    if(totalEnergyU>=200 && totalEnergyU<=1000)
+    {
+    	builders.max=1;
+    }
+    else if(totalEnergyU>=1001 && totalEnergyU<=6000)
+    {
+    	builders.max=2;
+    }
+    else if(totalEnergyU>=6001)
+    {
+    	builders.max=3;
+    }
+    else
+    {
+    	builders.max=0;
+    }
+    // truck management
+    // if there are towers and containers, it's time to have a truck
+    if(towers.length>0 && (containers.length>0 || storageBox.length>0))
+    {
+    	localTrucks.max=1;
+    	if(extensions.length>20)
+    	{
+    		// one more truck for handling this
+    		localTrucks.max=2;
+    	}
+    }
+
+    // mason management - are ther ramparts or walls to maintain?
+    if(defenses.length>0)
+    {
+    	masons.max=1;
+    }
+
+    // Builder culling
+    if(!constructionSitesTotal.length)
+    {
+        builders.max=0;
+    }
 	// Economy management - go into energy reservation mode if we're below max miners and need energy
 	aRoom.memory.energyReserveMode=false;
 	var energyCounter = 0;
@@ -429,14 +827,18 @@ function regulateCreeps(aRoom)
     {
         var thisCreep = Game.creeps[aCreep];
         var creepRole = "unknown";
-        if(thisCreep.room.name!=aRoom.name)
-        {
-        	// move to next creep
-        	continue;
-        }
         if(thisCreep.memory.role!=null)
         {
             creepRole = thisCreep.memory.role;
+        }
+        // exceptions to rule of per-room - expanders / pilgrims / remote-miners
+        if(creepRole!="unknown" && creepRole!="expander" && creepRole!="pilgrim")
+        {
+            if(thisCreep.room.name!=aRoom.name)
+            {
+            	// move to next creep
+            	continue;
+            }
         }
         switch(creepRole)
         {
@@ -496,59 +898,6 @@ function creepNeeded(popObj)
 	else
 	{
 		return false;
-	}
-}
-// Manage expansion of the hive!
-function manageExpansion(aRoom)
-{
-	var claimFlag = null;
-    if(aRoom.name==HOMEBASE)
-    {
-	    for (var flagName in Game.flags)
-	    {
-	        if(flagName.includes("claim"))
-	        {
-	            claimFlag=flagName;
-	            aRoom.memory.targetRoom=Game.flags[claimFlag].pos.roomName;
-	            break;
-	        }
-	    }
-
-	    if(aRoom.memory.targetRoom!=null)
-	    {
-	    	var claimTargetRoom = Game.rooms[aRoom.memory.targetRoom];
-	    	if(claimTargetRoom!=null)
-	    	{
-		        var spawnsInRoom = Game.rooms[aRoom.memory.targetRoom].find(FIND_STRUCTURES, {
-		                filter: (i) => (i.structureType==STRUCTURE_SPAWN)
-		            });
-		        var sitesInRoom = Game.rooms[aRoom.memory.targetRoom].find(FIND_CONSTRUCTION_SITES);
-		        if(spawnsInRoom.length>0 && sitesInRoom.length<1)
-		        {
-		            pilgrims.max=0;
-		            aRoom.memory.targetRoom=null;
-		            Game.flags[claimFlag].remove();
-		        }
-		        else if(Game.rooms[aRoom.memory.targetRoom].controller.owner.username!="hidden0")
-		        {
-		            expanders.max=1;
-		        }
-		        else
-		        {
-		            pilgrims.max=2;
-		        }
-	    	}
-	    	else
-	        {
-	            // We know nothing about the room...
-	            expanders.max=1;
-	        }
-	    }
-	    else
-	    {
-	        expanders.max=0;
-	        pilgrims.max=0;
-	    }
 	}
 }
 // Process creep roles and garbage collection
@@ -628,7 +977,7 @@ function checkOpenSpace(xpos,ypos,roomName1)
 	    ix = x-1; // reset
 		while (ix<(x+2))
 		{
-			var terrain = Game.map.getTerrainAt(ix,iy,Game.rooms[roomName1]);
+			var terrain = Game.map.getTerrainAt(ix,iy,roomName1);
 			if(terrain!="wall")
 			{
 			    accessible++;
@@ -642,131 +991,184 @@ function checkOpenSpace(xpos,ypos,roomName1)
 // This or trySpawn needs further optimization
 function spawnCreep(type,spawnPoint)
 {
-	var newCreep;
-	var curEnergy = spawnPoint.room.energyAvailable;
-	var extCount = spawnPoint.room.find(FIND_STRUCTURES, {
-        filter: (i) => (i.structureType==STRUCTURE_EXTENSION)
-    });
-    var linkCount = spawnPoint.room.find(FIND_STRUCTURES, {
-        filter: (i) => (i.structureType==STRUCTURE_LINK)
-    });
-    var sourceCount = spawnPoint.room.find(FIND_SOURCES);
-    var numExtensions = extCount.length;
-    var numLinks = linkCount.length;
-    var creepBody = bodySelector(type,numExtensions,curEnergy,numLinks,sourceCount,spawnPoint.room.name);
-    var roomTier = 0;
-    if(spawnPoint.room.memory.roomTier!=null)
-    {
-    	roomTier=spawnPoint.room.memory.roomTier;
-    }
-	if(spawnPoint.memory.creepCount==null)
+	if(spawnPoint.spawning==null)
 	{
-		spawnPoint.memory.creepCount=0;
-	}
-	else
-    {
-    	spawnPoint.memory.creepCount+=1;
-    }
-	switch(type)
-	{
-		case "localMiner":
-			var creepName = type+spawnPoint.memory.creepCount;
-		    if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="localMiner";
-				if(newCreep.memory.source==null)
+		var newCreep;
+		var curEnergy = spawnPoint.room.energyAvailable;
+		var extCount = spawnPoint.room.find(FIND_STRUCTURES, {
+	        filter: (i) => (i.structureType==STRUCTURE_EXTENSION)
+	    });
+	    var linkCount = spawnPoint.room.find(FIND_STRUCTURES, {
+	        filter: (i) => (i.structureType==STRUCTURE_LINK)
+	    });
+	    var sourceCount = spawnPoint.room.find(FIND_SOURCES);
+	    var numExtensions = extCount.length;
+	    var numLinks = linkCount.length;
+	    var creepBody = bodySelector(type,numExtensions,curEnergy,numLinks,sourceCount,spawnPoint.room.name);
+	    var roomTier = 0;
+	    if(spawnPoint.room.memory.roomTier!=null)
+	    {
+	    	roomTier=spawnPoint.room.memory.roomTier;
+	    }
+		if(spawnPoint.memory.creepCount==null)
+		{
+			spawnPoint.memory.creepCount=0;
+		}
+		else
+	    {
+	    	spawnPoint.memory.creepCount+=1;
+	    }
+	    var spawnNumber = spawnPoint.name[spawnPoint.name.length-1];
+		switch(type)
+		{
+			case "localMiner":
+				var creepName = "Miner_T"+creepTier+"_S"+spawnNumber+"_"+spawnPoint.memory.creepCount;
+			    if(trySpawn(creepName,creepBody,spawnPoint))
 				{
-					newCreep.memory.source = setLocalMinerSource(spawnPoint);
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="localMiner";
+					// Run a check to see if we're at creep tier 4 and the 2 miners should be spread out evenly
+	        		if(creepTier>=4 && aRoom.memory.localMinersMax==2)
+	        		{
+	        			if(creep.memory.source==null)
+	        			{
+		        			var sourcesInRoom = aRoom.find(FIND_SOURCES);
+		        			if(aRoom.memory.sourceAssignment==null)
+		        			{
+		        				aRoom.memory.sourceAssignment = sourcesInRoom[0].id;
+		        				creep.memory.source=sourcesInRoom[0].id;
+		        			}
+		        			else
+		        			{
+		        				creep.memory.source=sourcesInRoom[1].id;
+		        				aRoom.memory.sourceAssignment=null;
+		        			}
+	        			}
+	        		}
+					if(newCreep.memory.source==null)
+					{
+						newCreep.memory.source = setLocalMinerSource(spawnPoint);
+					}
 				}
-			}
-			break;
-		case "upgrader":
-			var creepName = type+spawnPoint.memory.creepCount
-			if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="upgrader";
-			}
-			break;
-		case "rangedKiller":
-			var creepName = type+spawnPoint.memory.creepCount;
-			if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="rangedKiller";
-			}
-			break;
-		case "builder":
-			var creepName = type+spawnPoint.memory.creepCount;
-		    if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="builder";
-			}
-			break;
-		case "mason":
-			var creepName = type+spawnPoint.memory.creepCount;
-		    if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="mason";
-			}
-			break;
-		case "localTruck":
-			var creepName = type+spawnPoint.memory.creepCount;
-			if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="localTruck";
-			}
-			break;
-		case "expander":
-			var creepName = type+spawnPoint.memory.creepCount;
-			if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="expander";
-			}
-			break;
-		case "thief":
-			var creepName = type+spawnPoint.memory.creepCount;
-			if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="thief";
-				newCreep.memory.steal="E33N98";
-			}
-			break;
-		case "pilgrim":
-			var creepName = type+spawnPoint.memory.creepCount;
-			if(trySpawn(creepName,creepBody,spawnPoint))
-			{
-				newCreep = Game.creeps[creepName];
-				newCreep.memory.role="pilgrim";
-			}
-			break;
+				break;
+			case "upgrader":
+				var creepName = "Upgrader_T"+creepTier+"_S"+spawnNumber+"_"+spawnPoint.memory.creepCount
+				if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="upgrader";
+				}
+				break;
+			case "rangedKiller":
+				var creepName = type+spawnPoint.memory.creepCount;
+				if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="rangedKiller";
+				}
+				break;
+			case "builder":
+				var creepName = "Builder_T"+creepTier+"_S"+spawnNumber+"_"+spawnPoint.memory.creepCount;
+			    if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="builder";
+					newCreep.memory.reuseVal=10;
+				}
+				break;
+			case "mason":
+				var creepName = type+spawnPoint.memory.creepCount;
+			    if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="mason";
+					newCreep.memory.reuseVal=10;
+				}
+				break;
+			case "localTruck":
+				var creepName = "Truck_T"+creepTier+"_S"+spawnNumber+"_"+spawnPoint.memory.creepCount;
+				if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="localTruck";
+					newCreep.memory.reuseVal=20;
+				}
+				break;
+			case "expander":
+				var creepName = type+spawnPoint.memory.creepCount;
+				if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="expander";
+					newCreep.memory.reuseVal=25;
+				}
+				break;
+			case "thief":
+				var creepName = type+spawnPoint.memory.creepCount;
+				if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="thief";
+					newCreep.memory.steal="E33N98";
+					newCreep.memory.reuseVal=25;
+				}
+				break;
+			case "pilgrim":
+				var creepName = type+spawnPoint.memory.creepCount;
+				if(trySpawn(creepName,creepBody,spawnPoint))
+				{
+					newCreep = Game.creeps[creepName];
+					newCreep.memory.role="pilgrim";
+					newCreep.memory.reuseVal=25;
+				}
+				break;
+		}
 	}
 }
 // This or spawnCreep needs further optimization
 function trySpawn(name,body,spawnPoint)
 {
+    console.log("Trying Spawn");
+	if(spawnPoint.memory.failCount!=null)
+	{
+		if(spawnPoint.memory.failCount>100)
+		{
+			// spawn basic miner
+			body = [WORK, CARRY, MOVE, MOVE];
+		}
+	}
 	var result = spawnPoint.canCreateCreep(body, name);
 	if(result == OK) {
 	    spawnPoint.createCreep(body, name);
+	    spawnPoint.memory.failCount=0;
 	    return true;
 	}
 	else if(result!=ERR_BUSY)
 	{
 		//console.log("Error spawning " + name + ":" + result);
+		if(spawnPoint.memory.failCount==null)
+		{
+			spawnPoint.memory.failCount=0;
+		}
+		else
+		{
+			spawnPoint.memory.failCount++;
+		}
 		return false;
 	}
 	else
 	{
+		if(spawnPoint.memory.failCount==null)
+		{
+			spawnPoint.memory.failCount=0;
+		}
+		else
+		{
+			spawnPoint.memory.failCount++;
+		}
 		return false;
 	}
 }
-
 // This is the function that handles all creep body generation
 function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameBody)
 {
@@ -774,26 +1176,9 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 	it can be calculated how much the cost of a body is and what parts should take precedence
 	when generating the body.
 	*/
-	var potentialEnergy = (numExtensions * 50) + 300; // this is the maximum creep building potential we have at the moment
-	var creepTier = 0;
 	var body;
 	var stats = {};
-	if(potentialEnergy>400 && curEnergy>400)
-	{
-		creepTier = 1; // first increase in tier, we can get more done at this stage
-	}
-	if(potentialEnergy>600 && numSources.length>1 && curEnergy>600)
-	{
-		creepTier = 2; // 7 Extensions - we can have a max potential of 650 energy
-	}
-	if(potentialEnergy>750 && numSources.length>1 && curEnergy>750)
-	{
-		creepTier = 3; // 10 Extensions - we can have a max potential of 800 energy
-	}
-	if(potentialEnergy>750 && numLinks>1 && numSources.length>1 && curEnergy>750)
-	{
-		creepTier = 4; // 10 Extensions - we can have a max potential of 800 energy, and there are base links. Time to beef up.
-	}
+
 	//console.log("Creep tier " + creepTier);
 	stats.creepTier=creepTier;
 	stats.curEnergy=curEnergy;
@@ -802,31 +1187,37 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 	stats.potentialEn=potentialEnergy;
 	Game.rooms[roomNameBody].memory.spawnStats=stats;
 	// Tiering system per type
+	/*
+	work = 100
+	move/carry = 50
+	claim = 600
+	tough = 10
+	attack = 80
+	*/
 	switch(type)
 	{
 		case "localMiner":
-			switch(creepTier)
+			switch(true)
 			{
 				// Base room spawn for mining
-				case 0:
+				// cost = 250 : extensions 5
+				case (creepTier==0):
 					body = [WORK, CARRY, MOVE, MOVE];
 					break;
 				// We've got some extensions and storage to work with
-				case 1:
-					body = [WORK, WORK, CARRY, CARRY, MOVE];
+				// cost = 250 : extensions 5
+				case (creepTier==1):
+					body = [WORK, CARRY, CARRY, MOVE];
 					break;
 				// First real miner that can get economy growing quickly
-				case 2:
+				// cost = 450 : extensions 9
+				case (creepTier==2):
 					body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE];
 					break;
 				// Long haul miner, drains sources quickly
-				case 3:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
-					break;
-				// This miner is intended to work stand-alone and is a bit different than most miners
-				// Supported by base links and powerful economy
-				case 4:
-					body = [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE];
+				// cost = 800 : extensions 16
+				case (creepTier>=3):
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -850,12 +1241,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					break;
 				// Long haul upgrader, all the GCL!
 				case 3:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
 					break;
 				// This upgrader is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -913,7 +1304,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// This builder is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -926,6 +1317,13 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// Base room spawn for upgrading the controller
 				default:
 					body = [CLAIM, MOVE, MOVE, MOVE, MOVE];
+					if(Game.rooms[HOMEBASE].memory.targetRoom!=null)
+					{
+						if(Game.rooms[HOMEBASE].memory.targetAction=="reserve")
+						{
+							body = [CLAIM, CLAIM, CLAIM, CLAIM, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE];
+						}
+					}						
 					break;
 			}
 			break;
@@ -950,6 +1348,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 		case "localTruck":
 			switch(creepTier)
 			{
+				case 3:
+					body = [MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
+					break;
+				case 4:
+					body = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
+					break;
 				// Base room spawn for upgrading the controller
 				default:
 					body = [MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
@@ -957,8 +1361,14 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 			}
 			break;
 		case "pilgrim":
-			switch(creepTier)
+			switch(true)
 			{
+				case (creepTier>=0 && creepTier<=3):
+					body = [CARRY,CARRY,CARRY,CARRY,WORK,WORK,WORK,WORK,MOVE,MOVE,MOVE,MOVE];
+					break;
+				case (creepTier==4):
+					body = [CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,WORK,WORK,WORK,MOVE,MOVE,WORK,WORK,WORK,WORK,WORK,WORK,WORK,WORK,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE];
+					break;
 				// Base room spawn for upgrading the controller
 				default:
 					body = [MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, WORK, WORK, WORK, WORK];
@@ -1027,8 +1437,6 @@ function setLocalMinerSource(spawnPoint)
 	var creeps_mining = 0;
 	var open_spaces = 0;
 	var sourceId = null;
-	console.log("Sources: " + sources.length);
-
 	for(var i = 0; i<sources.length; i++)
 	{
 		// Auto add +1 to a source, always have someone in transit
@@ -1060,6 +1468,13 @@ function setLocalMinerSource(spawnPoint)
 		{
 			break;
 		}
+	}
+
+	if(sourceId==null)
+	{
+		// choose a random one
+		var rand = Math.floor(Math.random() * sources.length);
+		sourceId = sources[rand].id;
 	}
 	return sourceId;
 }
@@ -1118,7 +1533,7 @@ function debugWindow(originX,originY,roomName)
 	var energyStats = "Energy available in room: " + roomEnergy;
 	new RoomVisual(roomName).text(energyStats, originX-1.5, originY, {color: 'blue', font: 0.5});
 
-	var creepTierStats = "Room creep tier: " + spawnStats.creepTier;
+	var creepTierStats = "Room creep tier: " + Game.rooms[roomName].memory.tier;
 	new RoomVisual(roomName).text(creepTierStats, originX-2.88, originY+0.5, {color: 'blue', font: 0.5});
 
 	var curEnergyTxt = "LastCurEnergy: " + spawnStats.curEnergy;
@@ -1126,4 +1541,25 @@ function debugWindow(originX,originY,roomName)
 
 	var linksSourcesTxt = "Sources: " + spawnStats.curSources.length + " Links: " + spawnStats.numLinks + " Potential: " + spawnStats.potentialEn;
 	new RoomVisual(roomName).text(linksSourcesTxt, originX, originY+1.5, {color: 'blue', font: 0.5});
+}
+
+// A function to find the lowest health object to repair given an array of structures
+function findWeakest(structuresList)
+{
+    var i = 0;
+    var winner = 0;
+    var memHits = 100000000;
+    var newMemHits = 0;
+    while (i<structuresList.length)
+    {
+        newMemHits = structuresList[i].hits;
+        if(newMemHits<memHits)
+        {
+            memHits=newMemHits;
+            winner=i;
+            
+        }
+        i++;
+    }
+    return winner;
 }

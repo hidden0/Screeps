@@ -107,13 +107,50 @@ function goIdle(myCreep)
 function setState(creep)
 {
     // Is there more than 200 spare energy in the room?
+    // Better question - does the storage have energy? Next, what about spawn?
     var roomEnergy = creep.room.energyAvailable;
-    if(roomEnergy > 200) {
-        // Find the closest storage container to the controller that has energy in it
-        creep.memory.action="points";
+    var spawnStores = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_SPAWN))
+    });
+    var storageStores = creep.room.find(FIND_STRUCTURES, {
+        filter: (i) => ((i.structureType==STRUCTURE_STORAGE))
+    });
+    if(storageStores.length>0)
+    {
+        if(storageStores[0].store['energy'] > 200)
+        {
+            // Find the closest storage container to the controller that has energy in it
+            creep.memory.action="points";
+        }
+    }
+    else if(spawnStores.length)
+    {
+        if(creep.room.controller.level < 3 ) {
+            creep.memory.action="points";
+        } else {
+        if(creep.room.energyAvailable>200)
+        {
+            // Find the closest storage container to the controller that has energy in it
+            creep.memory.action="points";
+        }
+        else
+        {
+            creep.memory.action="idle";
+        } }
     }
     else {
-        creep.memory.action="idle";
+        if(creep.room.controller.level < 3 ) {
+            creep.memory.action="points";
+        } else {
+        if(creep.room.energyAvailable>200)
+        {
+            // Find the closest storage container to the controller that has energy in it
+            creep.memory.action="points";
+        }
+        else
+        {
+            creep.memory.action="idle";
+        } }
     }
 }
 
@@ -145,44 +182,76 @@ function getEnergy(creep)
     var lowest=null;
     var dist=0;
 
-    // A secondary link would have been placed opportunely. Use it as the highest priority
-    if(secondaryLink.length>1 && secondaryLink[1].energy>0)
+    // Are there any controller links?
+    if(creep.room.memory.controllerLink!=null)
     {
-        if(creep.withdraw(secondaryLink[1],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+        secondaryLink = Game.getObjectById(creep.room.memory.controllerLink);
+        if(creep.withdraw(secondaryLink,RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
         {
-            creep.moveTo(secondaryLink[1]);
+            creep.moveTo(secondaryLink);
         }
     }
     else
     {
-        if(container.length)
+        if(secondaryLink.length>1 && secondaryLink[1].energy>0)
         {
-            while(i<container.length)
+            if(creep.withdraw(secondaryLink[1],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
             {
-                dist = mapDistance(creep,container[i]);
-                //console.log("Container["+i+"] distance: " + dist);
-                if(lowest==null)
-                {
-                    lowest=dist;
-                }
-                else if(dist<lowest)
-                {
-                    lowest=dist;
-                    winner_index=i;
-                }
-                i++;
-            }
-            //console.log("Container["+winner_index+"] chosen winner: " + lowest);
-            if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
-            {
-                creep.moveTo(container[winner_index]);
+                creep.moveTo(secondaryLink[1]);
             }
         }
         else
         {
-            if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+            if(container.length)
             {
-                creep.moveTo(energyStorage[0]);
+                while(i<container.length)
+                {
+                    dist = mapDistance(creep,container[i]);
+                    //console.log("Container["+i+"] distance: " + dist);
+                    if(lowest==null)
+                    {
+                        lowest=dist;
+                    }
+                    else if(dist<lowest)
+                    {
+                        lowest=dist;
+                        winner_index=i;
+                    }
+                    i++;
+                }
+                //console.log("Container["+winner_index+"] chosen winner: " + lowest);
+                if(creep.withdraw(container[winner_index],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+                {
+                    creep.moveTo(container[winner_index]);
+                }
+            }
+            else
+            {
+                // Which has more energy - spawn or storage?
+                if(energyStorage.length>1)
+                {
+                    if(energyStorage[0].energy > energyStorage[1].energy)
+                    {
+                        if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+                        {
+                            creep.moveTo(energyStorage[0]);
+                        }
+                    }
+                    else
+                    {
+                        if(creep.withdraw(energyStorage[1],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+                        {
+                            creep.moveTo(energyStorage[1]);
+                        }
+                    }
+                }
+                else
+                {
+                    if(creep.withdraw(energyStorage[0],RESOURCE_ENERGY,withdrawE) == ERR_NOT_IN_RANGE)
+                    {
+                        creep.moveTo(energyStorage[0]);
+                    }
+                }
             }
         }
     }

@@ -1217,7 +1217,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// Long haul miner, drains sources quickly
 				// cost = 800 : extensions 16
 				case (creepTier>=3):
-					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1241,12 +1241,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					break;
 				// Long haul upgrader, all the GCL!
 				case 3:
-					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE];
 					break;
 				// This upgrader is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1270,12 +1270,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					break;
 				// Long haul mason, all the GCL!
 				case 3:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
 					break;
 				// This mason is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1304,7 +1304,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// This builder is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1352,7 +1352,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					body = [MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 					break;
 				case 4:
-					body = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
+					body = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 					break;
 				// Base room spawn for upgrading the controller
 				default:
@@ -1365,9 +1365,6 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 			{
 				case (creepTier>=0 && creepTier<=3):
 					body = [CARRY,CARRY,CARRY,CARRY,WORK,WORK,WORK,WORK,MOVE,MOVE,MOVE,MOVE];
-					break;
-				case (creepTier==4):
-					body = [CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,WORK,WORK,WORK,MOVE,MOVE,WORK,WORK,WORK,WORK,WORK,WORK,WORK,WORK,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE];
 					break;
 				// Base room spawn for upgrading the controller
 				default:

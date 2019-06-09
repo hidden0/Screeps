@@ -7,7 +7,7 @@ Expander creep. Goals:
 Repeat steps 2-3 until spawn complete
 ***/
 // Constant
-const HOMEBASE = 'W18S15';
+const HOMEBASE = 'W8N3';
 const USERNAME = 'hidden0';
 var expanderCreep = {
 	/** @param {Creep} creep object **/
@@ -48,8 +48,10 @@ var expanderCreep = {
     		if(creep.room.controller.owner!=USERNAME) {
     			if(creep.memory.targetAction=="claim")
     			{
+    			    console.log(creep.claimController(creep.room.controller))
 	                if(creep.claimController(creep.room.controller) == ERR_NOT_IN_RANGE) {
 	                	var moveResult = creep.moveTo(creep.room.controller);
+	                	console.log("Neat")
 	                    if(moveResult!=OK)
 	                    {
 	                    	if(moveResult==ERR_NO_PATH)

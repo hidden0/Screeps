@@ -33,7 +33,7 @@ no need to switch to a new source
 ***/
 
 // Constant
-const HOMEBASE = 'W18S15';
+const HOMEBASE = 'W8N3';
 const USERNAME = 'hidden0';
 
 // Creep Roles
@@ -349,7 +349,8 @@ function handleTowers(aRoom)
         var i=0;
         while(i<towers.length)
         {
-            if(towers[i].energy>200 && tRepairTargets.length)
+            aRoom.memory.repMode=false;
+            if(towers[i].energy>200 && tRepairTargets.length && aRoom.memory.repMode==true)
             {
                 var threshold = tRepairTargets[0].hitsMax;
                 // Get lowest health structure
@@ -726,6 +727,8 @@ function populationManager(aRoom)
     	builders.max=0;
     }
     // truck management
+    var energyCounter = 0;
+	energyCounter+=aRoom.energyAvailable;
     // if there are towers and containers, it's time to have a truck
     if(towers.length>0 && (containers.length>0 || storageBox.length>0))
     {
@@ -734,6 +737,10 @@ function populationManager(aRoom)
     	{
     		// one more truck for handling this
     		localTrucks.max=2;
+    	}
+    	if(energyCounter>50000)
+    	{
+    	    localTrucks.max=3;   
     	}
     }
 
@@ -750,8 +757,7 @@ function populationManager(aRoom)
     }
 	// Economy management - go into energy reservation mode if we're below max miners and need energy
 	aRoom.memory.energyReserveMode=false;
-	var energyCounter = 0;
-	energyCounter+=aRoom.energyAvailable;
+	
 	if(energyCounter<250)
 	{
 		if(localMiners.current<localMiners.max)
@@ -1073,7 +1079,7 @@ function spawnCreep(type,spawnPoint)
 				{
 					newCreep = Game.creeps[creepName];
 					newCreep.memory.role="builder";
-					newCreep.memory.reuseVal=10;
+					newCreep.memory.reuseVal=5;
 				}
 				break;
 			case "mason":
@@ -1082,7 +1088,7 @@ function spawnCreep(type,spawnPoint)
 				{
 					newCreep = Game.creeps[creepName];
 					newCreep.memory.role="mason";
-					newCreep.memory.reuseVal=10;
+					newCreep.memory.reuseVal=5;
 				}
 				break;
 			case "localTruck":
@@ -1091,7 +1097,7 @@ function spawnCreep(type,spawnPoint)
 				{
 					newCreep = Game.creeps[creepName];
 					newCreep.memory.role="localTruck";
-					newCreep.memory.reuseVal=20;
+					newCreep.memory.reuseVal=5;
 				}
 				break;
 			case "expander":
@@ -1100,7 +1106,7 @@ function spawnCreep(type,spawnPoint)
 				{
 					newCreep = Game.creeps[creepName];
 					newCreep.memory.role="expander";
-					newCreep.memory.reuseVal=25;
+					newCreep.memory.reuseVal=5;
 				}
 				break;
 			case "thief":
@@ -1110,7 +1116,7 @@ function spawnCreep(type,spawnPoint)
 					newCreep = Game.creeps[creepName];
 					newCreep.memory.role="thief";
 					newCreep.memory.steal="E33N98";
-					newCreep.memory.reuseVal=25;
+					newCreep.memory.reuseVal=10;
 				}
 				break;
 			case "pilgrim":
@@ -1119,7 +1125,7 @@ function spawnCreep(type,spawnPoint)
 				{
 					newCreep = Game.creeps[creepName];
 					newCreep.memory.role="pilgrim";
-					newCreep.memory.reuseVal=25;
+					newCreep.memory.reuseVal=10;
 				}
 				break;
 		}
@@ -1217,7 +1223,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// Long haul miner, drains sources quickly
 				// cost = 800 : extensions 16
 				case (creepTier>=3):
-					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1241,12 +1247,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					break;
 				// Long haul upgrader, all the GCL!
 				case 3:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
 					break;
 				// This upgrader is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1270,12 +1276,12 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					break;
 				// Long haul mason, all the GCL!
 				case 3:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE];
 					break;
 				// This mason is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+					body = [WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1304,7 +1310,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 				// This builder is intended to work stand-alone and is a bit different than most miners
 				// Supported by base links and powerful economy
 				case 4:
-					body = [WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE];
+					body = [WORK, WORK, WORK, WORK, WORK, CARRY, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
 					break;
 				default:
 					body = [WORK, CARRY, MOVE, MOVE];
@@ -1352,7 +1358,7 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 					body = [MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 					break;
 				case 4:
-					body = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
+					body = [MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY, CARRY];
 					break;
 				// Base room spawn for upgrading the controller
 				default:
@@ -1365,6 +1371,9 @@ function bodySelector(type,numExtensions,curEnergy,numLinks,numSources,roomNameB
 			{
 				case (creepTier>=0 && creepTier<=3):
 					body = [CARRY,CARRY,CARRY,CARRY,WORK,WORK,WORK,WORK,MOVE,MOVE,MOVE,MOVE];
+					break;
+				case (creepTier==4):
+					body = [CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,CARRY,WORK,WORK,WORK,MOVE,MOVE,WORK,WORK,WORK,WORK,WORK,WORK,WORK,WORK,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE];
 					break;
 				// Base room spawn for upgrading the controller
 				default:

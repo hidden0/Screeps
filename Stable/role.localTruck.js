@@ -8,8 +8,8 @@ If there is no energy to move or a need to move energy, perhaps salvage energy o
 ***/
 
 var localTruckCreep = {
-    /** @param {Creep} creep object **/
-    run: function(creep) {
+	/** @param {Creep} creep object **/
+	run: function(creep) {
         // What should happen?
         // Take energy to towers that need it
         var reuseVal = 5;
@@ -328,26 +328,26 @@ function goIdle(myCreep)
     {
         reuseVal=myCreep.memory.reuseVal;
     }
-    // if a flag is already set, don't loop for it
-    if(myCreep.memory.idleFlag!=null)
-    {
-        if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reuseVal})==ERR_INVALID_TARGET)
-        {
-            myCreep.memory.idleFlag=null;
-        }
-    }
-    // Otherwise, see if a flag is in the room
-    else
-    {
-        for (var flagName in Game.flags)
-        {
-            if(flagName.includes("truck") && Game.flags[flagName].pos.roomName==myCreep.room.name)
-            {
-                myCreep.memory.idleFlag=flagName;
-                break;
-            }
-        }
-    }
+	// if a flag is already set, don't loop for it
+	if(myCreep.memory.idleFlag!=null)
+	{
+		if(myCreep.moveTo(Game.flags[myCreep.memory.idleFlag], {reusePath: reuseVal})==ERR_INVALID_TARGET)
+		{
+			myCreep.memory.idleFlag=null;
+		}
+	}
+	// Otherwise, see if a flag is in the room
+	else
+	{
+		for (var flagName in Game.flags)
+		{
+			if(flagName.includes("truck") && Game.flags[flagName].pos.roomName==myCreep.room.name)
+			{
+				myCreep.memory.idleFlag=flagName;
+				break;
+			}
+		}
+	}
     myCreep.memory.action=null;
 }
 
